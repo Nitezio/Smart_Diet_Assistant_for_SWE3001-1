@@ -1,118 +1,110 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../providers/app_state.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _selectedIndex = 0;
+
+  // [SDD 6.1] Core Navigation Screens
+  static final List<Widget> _widgetOptions = <Widget>[
+    const MealPlanTab(), // Home/Meal Plan
+    const TrackerTab(),  // FR-06/07
+    const ChatTab(),     // FR-13
+    const ProfileTab(),  // FR-02
+  ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: _widgetOptions.elementAt(_selectedIndex),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu), label: 'Meals'),
+          BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: 'Tracker'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: Colors.green,
+        unselectedItemColor: Colors.grey,
+        type: BottomNavigationBarType.fixed,
+        onTap: _onItemTapped,
+      ),
+    );
+  }
+}
+
+// --- TAB 1: MEAL PLAN (AI) ---
+class MealPlanTab extends StatelessWidget {
+  const MealPlanTab({super.key});
 
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppState>(context);
-
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("Hello, ${state.user?.name ?? 'Patient'}", style: const TextStyle(fontSize: 18)),
-            const Text("Live AI Connection", style: TextStyle(fontSize: 12, color: Colors.white70)),
-          ],
-        ),
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
-      ),
+      appBar: AppBar(title: const Text("Daily Meal Plan"), backgroundColor: Colors.green, foregroundColor: Colors.white),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // 1. Control Panel
-            _buildGenerateButton(context, state),
-
-            const SizedBox(height: 20),
-
-            // 2. Dynamic Output Area
             if (state.isLoading)
-              const Padding(
-                padding: EdgeInsets.all(20.0),
-                child: Column(
-                  children: [
-                    CircularProgressIndicator(color: Colors.teal),
-                    SizedBox(height: 15),
-                    Text("Connecting to Google Gemini...", style: TextStyle(color: Colors.grey)),
-                  ],
-                ),
-              )
+              const Center(child: CircularProgressIndicator())
             else if (state.currentMealPlan != null)
-              _buildResultView(state.currentMealPlan!),
+              _buildParsedDietList(state.currentMealPlan!)
+            else
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.auto_awesome),
+                    label: const Text("Generate Meal Plan"),
+                    style: ElevatedButton.styleFrom(padding: const EdgeInsets.all(16)),
+                    onPressed: () => state.getDietPlan(),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
+      floatingActionButton: state.currentMealPlan != null ? FloatingActionButton(
+        onPressed: () => state.getDietPlan(),
+        backgroundColor: Colors.green,
+        child: const Icon(Icons.refresh, color: Colors.white),
+      ) : null,
     );
   }
 
-  Widget _buildGenerateButton(BuildContext context, AppState state) {
-    return SizedBox(
-      width: double.infinity,
-      height: 60,
-      child: ElevatedButton.icon(
-        icon: const Icon(Icons.bolt, color: Colors.white),
-        label: const Text("Generate Real Meal Plan", style: TextStyle(fontSize: 18, color: Colors.white)),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.teal,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          elevation: 4,
-        ),
-        onPressed: state.isLoading ? null : () => state.getDietPlan(),
-      ),
-    );
-  }
+  Widget _buildParsedDietList(String planText) {
+    if (planText.startsWith("Error")) return Text(planText, style: const TextStyle(color: Colors.red));
 
-  Widget _buildResultView(String planText) {
-    // ⚠️ ERROR HANDLING: Check if the text starts with "Error"
-    if (planText.startsWith("Error")) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.red.shade50,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.red.shade200),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.red),
-            const SizedBox(width: 12),
-            Expanded(child: Text(planText, style: TextStyle(color: Colors.red.shade900))),
-          ],
-        ),
-      );
-    }
-
-    // ✅ SUCCESS: Parse the AI text into Cards
     final lines = planText.split('\n');
     List<Widget> cards = [];
 
     for (String line in lines) {
       if (line.trim().isEmpty) continue;
-
-      if (line.contains("Breakfast:")) {
-        cards.add(_buildCard("Breakfast", line.replaceAll("Breakfast:", ""), Colors.orange));
-      } else if (line.contains("Lunch:")) {
-        cards.add(_buildCard("Lunch", line.replaceAll("Lunch:", ""), Colors.green));
-      } else if (line.contains("Dinner:")) {
-        cards.add(_buildCard("Dinner", line.replaceAll("Dinner:", ""), Colors.blue));
-      } else if (line.contains("Snack:")) {
-        cards.add(_buildCard("Snack", line.replaceAll("Snack:", ""), Colors.purple));
-      } else if (line.contains("Reasoning:")) {
-        cards.add(_buildInfoBox(line.replaceAll("Reasoning:", "")));
-      }
+      if (line.contains("Breakfast:")) cards.add(_buildCard("Breakfast", line.replaceAll("Breakfast:", ""), Colors.orange));
+      else if (line.contains("Lunch:")) cards.add(_buildCard("Lunch", line.replaceAll("Lunch:", ""), Colors.green));
+      else if (line.contains("Dinner:")) cards.add(_buildCard("Dinner", line.replaceAll("Dinner:", ""), Colors.blue));
+      else if (line.contains("Snack:")) cards.add(_buildCard("Snack", line.replaceAll("Snack:", ""), Colors.purple));
+      else if (line.contains("Nutrients")) cards.add(Card(color: Colors.teal.shade50, child: Padding(padding: const EdgeInsets.all(16), child: Text(line.trim(), style: const TextStyle(fontWeight: FontWeight.bold)))));
     }
-
-    if (cards.isEmpty) {
-      // Fallback if AI formatting was weird but not an error
-      return Text(planText);
-    }
-
     return Column(children: cards);
   }
 
@@ -120,30 +112,101 @@ class HomeScreen extends StatelessWidget {
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        leading: CircleAvatar(backgroundColor: color.withOpacity(0.2), child: Icon(Icons.restaurant, color: color)),
+        leading: Icon(Icons.restaurant, color: color),
         title: Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: color)),
-        subtitle: Text(content.trim(), style: const TextStyle(fontSize: 16)),
+        subtitle: Text(content.trim()),
+        trailing: IconButton(icon: const Icon(Icons.check_circle_outline), onPressed: (){}), // [SRS FR-06] Log Meal
+      ),
+    );
+  }
+}
+
+// --- TAB 2: TRACKER (Prototype) ---
+class TrackerTab extends StatelessWidget {
+  const TrackerTab({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Nutritional Tracker")),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(FontAwesomeIcons.chartPie, size: 80, color: Colors.green),
+            const SizedBox(height: 20),
+            const Text("Calories Today", style: TextStyle(fontSize: 18)),
+            const Text("1250 / 1800 kcal", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.green)),
+            const SizedBox(height: 30),
+            // Placeholder chart
+            Container(height: 20, width: 300, color: Colors.green.shade100, child: FractionallySizedBox(alignment: Alignment.centerLeft, widthFactor: 0.7, child: Container(color: Colors.green))),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// --- TAB 3: CHAT (Prototype) [SRS FR-13] ---
+class ChatTab extends StatelessWidget {
+  const ChatTab({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Chat with Nutritionist")),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                _chatBubble("Hello! I am Dr. Lee. How can I help you?", false),
+                _chatBubble("Is Nasi Lemak okay for my diabetes?", true),
+                _chatBubble("A small portion is okay, but avoid the extra rice and sambal due to sugar content.", false),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(decoration: InputDecoration(hintText: "Type message...", suffixIcon: const Icon(Icons.send), border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)))),
+          )
+        ],
       ),
     );
   }
 
-  Widget _buildInfoBox(String content) {
-    return Container(
-      margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.teal.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.teal.shade100),
+  Widget _chatBubble(String text, bool isMe) {
+    return Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 5),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: isMe ? Colors.green : Colors.grey[300], borderRadius: BorderRadius.circular(15)),
+        child: Text(text, style: TextStyle(color: isMe ? Colors.white : Colors.black)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    );
+  }
+}
+
+// --- TAB 4: PROFILE (Read Only) ---
+class ProfileTab extends StatelessWidget {
+  const ProfileTab({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final user = Provider.of<AppState>(context).user;
+    return Scaffold(
+      appBar: AppBar(title: const Text("My Profile")),
+      body: user == null ? const Center(child: Text("No Profile Data")) : ListView(
+        padding: const EdgeInsets.all(16),
         children: [
-          const Row(children: [Icon(Icons.verified, size: 18, color: Colors.teal), SizedBox(width: 8), Text("AI Analysis", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal))]),
-          const SizedBox(height: 8),
-          Text(content.trim(), style: TextStyle(color: Colors.teal.shade900)),
+          const CircleAvatar(radius: 50, child: Icon(Icons.person, size: 50)),
+          const SizedBox(height: 20),
+          ListTile(title: const Text("Name"), subtitle: Text(user.name), leading: const Icon(Icons.person)),
+          ListTile(title: const Text("Conditions"), subtitle: Text(user.conditions.join(", ")), leading: const Icon(Icons.medical_services)),
+          ListTile(title: const Text("Allergies"), subtitle: Text(user.allergies.join(", ")), leading: const Icon(Icons.warning)),
+          const Divider(),
+          ListTile(title: const Text("Link Caregiver"), leading: const Icon(Icons.people), onTap: (){}),
+          ListTile(title: const Text("Settings"), leading: const Icon(Icons.settings), onTap: (){}),
         ],
       ),
     );

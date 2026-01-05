@@ -3,44 +3,43 @@ import '../models/user_profile.dart';
 
 class GeminiService {
   // 🔴 Ensure your API Key is correct here
-  static const String _apiKey = "AIzaSyD2KIl0H3a9F-ptCRnNMKFmJfmj89aX0gQ";
+  static const String _apiKey = "ENTER_GEMINI_API_KEY";
 
   late final GenerativeModel _model;
 
   GeminiService() {
-    // 🟢 UPDATED: Using 'gemini-2.5-flash' correctly in Dart
+    // Using the efficient flash model
     _model = GenerativeModel(model: 'gemini-2.5-flash', apiKey: _apiKey);
   }
 
   Future<String> generateMealPlan(UserProfile profile) async {
     final prompt = '''
-      Act as a professional medical nutritionist for an elderly patient.
-      Patient Profile: ${profile.toPromptString()}
+      Act as a professional medical nutritionist for an elderly person in Malaysia.
+      User Profile: ${profile.toPromptString()}
       
-      Generate a customized 1-day meal plan.
+      Generate a 1-Day Meal Plan using LOCAL MALAYSIAN DISHES.
       
-      STRICT OUTPUT FORMAT (No markdown, no bolding, plain text only):
-      Breakfast: [Meal Name] - [Ingredients]
-      Lunch: [Meal Name] - [Ingredients]
-      Dinner: [Meal Name] - [Ingredients]
-      Snack: [Snack Name]
-      Reasoning: [1 sentence medical explanation]
-      Nutrients: [Total Calories], [Protein amount]
+      STRICT OUTPUT FORMAT (Plain text, no markdown):
+      Breakfast: [Local Dish Name] - [Brief Ingredients]
+      Lunch: [Local Dish Name] - [Brief Ingredients]
+      Dinner: [Local Dish Name] - [Brief Ingredients]
+      Snack: [Local Kuih/Fruit]
+      Reasoning: [1 sentence medical explanation why this fits their condition]
+      Nutrients: [Total Calories] kcal, [Protein]g
     ''';
 
-    print("🔵 STATUS: Connecting to Google AI (Model: gemini-2.5-flash)...");
+    print("🔵 STATUS: Connecting to Google AI (Malaysian Context)...");
 
     try {
       final content = [Content.text(prompt)];
       final response = await _model.generateContent(content);
 
       if (response.text != null) {
-        print("🟢 SUCCESS: Received ${response.text!.length} characters from Google!");
+        print("🟢 SUCCESS: Received response!");
         return response.text!;
       } else {
         return "Error: AI returned empty response.";
       }
-
     } catch (e) {
       print("🔴 ERROR: Connection failed. Reason: $e");
       return "Error: $e";

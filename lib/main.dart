@@ -20,12 +20,15 @@ class SmartDietApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Smart Diet Assistant',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.green,
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4CAF50)),
         useMaterial3: true,
-        // Large fonts for elderly accessibility
+        // [SRS 5.4] Accessibility: Large, clear fonts
         textTheme: const TextTheme(
-          bodyMedium: TextStyle(fontSize: 18),
+          bodyMedium: TextStyle(fontSize: 16),
+          titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
       ),
       initialRoute: '/',
