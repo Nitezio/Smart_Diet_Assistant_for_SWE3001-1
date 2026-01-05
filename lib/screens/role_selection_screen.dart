@@ -12,11 +12,11 @@ class RoleSelectionScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Spacer(),
+              const Spacer(flex: 1),
               const Icon(FontAwesomeIcons.users, size: 60, color: Colors.green),
               const SizedBox(height: 20),
               const Text(
@@ -34,7 +34,9 @@ class RoleSelectionScreen extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
-              const Spacer(),
+              const Spacer(flex: 1),
+
+              // --- MAIN ROLES (Big Buttons) ---
               _buildRoleButton(
                   context,
                   "Elderly User",
@@ -58,7 +60,29 @@ class RoleSelectionScreen extends StatelessWidget {
                   FontAwesomeIcons.houseUser,
                   "Family"
               ),
-              const Spacer(),
+
+              const Spacer(flex: 2),
+
+              // --- ADMIN ROLE (Small, Bottom Center) ---
+              Center(
+                child: TextButton.icon(
+                  onPressed: () {
+                    // Navigate directly to Admin Login
+                    Navigator.pushNamed(context, '/admin_login');
+                  },
+                  icon: const Icon(Icons.admin_panel_settings, size: 16, color: Colors.grey),
+                  label: const Text(
+                      "Admin Access",
+                      style: TextStyle(color: Colors.grey, fontSize: 14)
+                  ),
+                  style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      backgroundColor: Colors.grey.shade100,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
             ],
           ),
         ),
@@ -69,7 +93,7 @@ class RoleSelectionScreen extends StatelessWidget {
   Widget _buildRoleButton(BuildContext context, String title, String subtitle, IconData icon, String roleKey) {
     return InkWell(
       onTap: () {
-        // Save role and go to Login
+        // Save role and go to Standard User Login
         Provider.of<AppState>(context, listen: false).setRole(roleKey);
         Navigator.pushNamed(context, '/login');
       },

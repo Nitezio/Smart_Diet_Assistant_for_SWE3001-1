@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'providers/app_state.dart';
-import 'screens/role_selection_screen.dart'; // Import the new screen
+import 'screens/role_selection_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/admin/admin_login_screen.dart';
+import 'screens/admin/admin_dashboard_screen.dart';
 
 void main() {
   runApp(
@@ -37,18 +39,19 @@ class SmartDietApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/onboarding': (context) => const OnboardingScreen(),
         '/home': (context) => const HomeScreen(),
+        '/admin_login': (context) => const AdminLoginScreen(), // Keeps admin accessible
+        '/admin_dashboard': (context) => const AdminDashboardScreen(),
       },
     );
   }
 }
 
-// --- LOGIN SCREEN (Integrated logic) ---
+// --- LOGIN SCREEN (Standard User Only) ---
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Get the role to show dynamic text
     final role = Provider.of<AppState>(context).selectedRole;
 
     return Scaffold(
@@ -67,7 +70,6 @@ class LoginScreen extends StatelessWidget {
               const SizedBox(height: 20),
               const Text("Smart Diet Assistant", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
 
-              // Dynamic Text based on Role
               Container(
                 margin: const EdgeInsets.only(top: 10),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -80,7 +82,6 @@ class LoginScreen extends StatelessWidget {
 
               const SizedBox(height: 40),
 
-              // Login Form Placeholders
               TextFormField(
                 decoration: const InputDecoration(
                     labelText: "Email Address",
@@ -105,7 +106,6 @@ class LoginScreen extends StatelessWidget {
                 height: 55,
                 child: ElevatedButton(
                   onPressed: () {
-                    // Simulate Login Success -> Go to Profile Setup
                     Navigator.pushReplacementNamed(context, '/onboarding');
                   },
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
