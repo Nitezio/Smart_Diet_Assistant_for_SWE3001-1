@@ -13,12 +13,11 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
-  // [SDD 6.1] Core Navigation Screens
   static final List<Widget> _widgetOptions = <Widget>[
-    const MealPlanTab(), // Home/Meal Plan
-    const TrackerTab(),  // FR-06/07
-    const ChatTab(),     // FR-13
-    const ProfileTab(),  // FR-02
+    const MealPlanTab(),
+    const TrackerTab(),
+    const ChatTab(),
+    const ProfileTab(),
   ];
 
   void _onItemTapped(int index) {
@@ -29,16 +28,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final state = Provider.of<AppState>(context);
+    final role = state.selectedRole;
+
     return Scaffold(
       body: SafeArea(
         child: _widgetOptions.elementAt(_selectedIndex),
       ),
       bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu), label: 'Meals'),
-          BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: 'Tracker'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        items: <BottomNavigationBarItem>[
+          const BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu), label: 'Meals'),
+          const BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: 'Tracker'),
+          const BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
+          BottomNavigationBarItem(
+              icon: const Icon(Icons.person),
+              label: role == 'Elderly' ? 'Me' : 'Patient'
+          ),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.green,
@@ -59,7 +64,11 @@ class MealPlanTab extends StatelessWidget {
     final state = Provider.of<AppState>(context);
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      appBar: AppBar(title: const Text("Daily Meal Plan"), backgroundColor: Colors.green, foregroundColor: Colors.white),
+      appBar: AppBar(
+          title: const Text("Daily Meal Plan"),
+          backgroundColor: Colors.green,
+          foregroundColor: Colors.white
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -92,18 +101,33 @@ class MealPlanTab extends StatelessWidget {
   }
 
   Widget _buildParsedDietList(String planText) {
-    if (planText.startsWith("Error")) return Text(planText, style: const TextStyle(color: Colors.red));
+    if (planText.startsWith("Error")) {
+      return Text(planText, style: const TextStyle(color: Colors.red));
+    }
 
     final lines = planText.split('\n');
     List<Widget> cards = [];
 
     for (String line in lines) {
       if (line.trim().isEmpty) continue;
-      if (line.contains("Breakfast:")) cards.add(_buildCard("Breakfast", line.replaceAll("Breakfast:", ""), Colors.orange));
-      else if (line.contains("Lunch:")) cards.add(_buildCard("Lunch", line.replaceAll("Lunch:", ""), Colors.green));
-      else if (line.contains("Dinner:")) cards.add(_buildCard("Dinner", line.replaceAll("Dinner:", ""), Colors.blue));
-      else if (line.contains("Snack:")) cards.add(_buildCard("Snack", line.replaceAll("Snack:", ""), Colors.purple));
-      else if (line.contains("Nutrients")) cards.add(Card(color: Colors.teal.shade50, child: Padding(padding: const EdgeInsets.all(16), child: Text(line.trim(), style: const TextStyle(fontWeight: FontWeight.bold)))));
+
+      if (line.contains("Breakfast:")) {
+        cards.add(_buildCard("Breakfast", line.replaceAll("Breakfast:", ""), Colors.orange));
+      } else if (line.contains("Lunch:")) {
+        cards.add(_buildCard("Lunch", line.replaceAll("Lunch:", ""), Colors.green));
+      } else if (line.contains("Dinner:")) {
+        cards.add(_buildCard("Dinner", line.replaceAll("Dinner:", ""), Colors.blue));
+      } else if (line.contains("Snack:")) {
+        cards.add(_buildCard("Snack", line.replaceAll("Snack:", ""), Colors.purple));
+      } else if (line.contains("Nutrients")) {
+        cards.add(Card(
+            color: Colors.teal.shade50,
+            child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(line.trim(), style: const TextStyle(fontWeight: FontWeight.bold))
+            )
+        ));
+      }
     }
     return Column(children: cards);
   }
@@ -116,13 +140,16 @@ class MealPlanTab extends StatelessWidget {
         leading: Icon(Icons.restaurant, color: color),
         title: Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: color)),
         subtitle: Text(content.trim()),
-        trailing: IconButton(icon: const Icon(Icons.check_circle_outline), onPressed: (){}), // [SRS FR-06] Log Meal
+        trailing: IconButton(
+          icon: const Icon(Icons.check_circle_outline),
+          onPressed: (){},
+        ),
       ),
     );
   }
 }
 
-// --- TAB 2: TRACKER (Prototype) ---
+// --- TAB 2: TRACKER ---
 class TrackerTab extends StatelessWidget {
   const TrackerTab({super.key});
   @override
@@ -138,8 +165,16 @@ class TrackerTab extends StatelessWidget {
             const Text("Calories Today", style: TextStyle(fontSize: 18)),
             const Text("1250 / 1800 kcal", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.green)),
             const SizedBox(height: 30),
-            // Placeholder chart
-            Container(height: 20, width: 300, color: Colors.green.shade100, child: FractionallySizedBox(alignment: Alignment.centerLeft, widthFactor: 0.7, child: Container(color: Colors.green))),
+            Container(
+                height: 20,
+                width: 300,
+                color: Colors.green.shade100,
+                child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: 0.7,
+                    child: Container(color: Colors.green)
+                )
+            ),
           ],
         ),
       ),
@@ -147,7 +182,7 @@ class TrackerTab extends StatelessWidget {
   }
 }
 
-// --- TAB 3: CHAT (Prototype) [SRS FR-13] ---
+// --- TAB 3: CHAT ---
 class ChatTab extends StatelessWidget {
   const ChatTab({super.key});
   @override
@@ -168,7 +203,13 @@ class ChatTab extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: TextField(decoration: InputDecoration(hintText: "Type message...", suffixIcon: const Icon(Icons.send), border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)))),
+            child: TextField(
+                decoration: InputDecoration(
+                    hintText: "Type message...",
+                    suffixIcon: const Icon(Icons.send),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(30))
+                )
+            ),
           )
         ],
       ),
@@ -181,14 +222,17 @@ class ChatTab extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 5),
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: isMe ? Colors.green : Colors.grey[300], borderRadius: BorderRadius.circular(15)),
+        decoration: BoxDecoration(
+            color: isMe ? Colors.green : Colors.grey[300],
+            borderRadius: BorderRadius.circular(15)
+        ),
         child: Text(text, style: TextStyle(color: isMe ? Colors.white : Colors.black)),
       ),
     );
   }
 }
 
-// --- TAB 4: PROFILE (Read Only) ---
+// --- TAB 4: PROFILE ---
 class ProfileTab extends StatelessWidget {
   const ProfileTab({super.key});
   @override

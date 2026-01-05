@@ -9,9 +9,18 @@ class AppState with ChangeNotifier {
   String? _currentMealPlan;
   bool _isLoading = false;
 
+  // New: Track the selected role (Default to Elderly)
+  String _selectedRole = 'Elderly';
+
   UserProfile? get user => _user;
   String? get currentMealPlan => _currentMealPlan;
   bool get isLoading => _isLoading;
+  String get selectedRole => _selectedRole;
+
+  void setRole(String role) {
+    _selectedRole = role;
+    notifyListeners();
+  }
 
   void setUser(UserProfile profile) {
     _user = profile;

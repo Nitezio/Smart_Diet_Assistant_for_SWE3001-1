@@ -1,9 +1,10 @@
+import 'package:flutter/foundation.dart'; // Import for debugPrint
 import 'package:google_generative_ai/google_generative_ai.dart';
 import '../models/user_profile.dart';
 
 class GeminiService {
   // 🔴 Ensure your API Key is correct here
-  static const String _apiKey = "ENTER_GEMINI_API_KEY";
+  static const String _apiKey = "AIzaSyD2KIl0H3a9F-ptCRnNMKFmJfmj89aX0gQ";
 
   late final GenerativeModel _model;
 
@@ -28,20 +29,20 @@ class GeminiService {
       Nutrients: [Total Calories] kcal, [Protein]g
     ''';
 
-    print("🔵 STATUS: Connecting to Google AI (Malaysian Context)...");
+    debugPrint("🔵 STATUS: Connecting to Google AI (Malaysian Context)...");
 
     try {
       final content = [Content.text(prompt)];
       final response = await _model.generateContent(content);
 
       if (response.text != null) {
-        print("🟢 SUCCESS: Received response!");
+        debugPrint("🟢 SUCCESS: Received response!");
         return response.text!;
       } else {
         return "Error: AI returned empty response.";
       }
     } catch (e) {
-      print("🔴 ERROR: Connection failed. Reason: $e");
+      debugPrint("🔴 ERROR: Connection failed. Reason: $e");
       return "Error: $e";
     }
   }

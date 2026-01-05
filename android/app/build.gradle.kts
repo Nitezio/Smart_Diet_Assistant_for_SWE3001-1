@@ -8,7 +8,7 @@ plugins {
 android {
     namespace = "com.example.smart_diet_assistant"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.0.12077973" // This fixes your NDK error
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
