@@ -5,7 +5,7 @@ import '../models/user_profile.dart';
 
 class GeminiService {
   // 🔴 Ensure your API Key is correct here
-  static const String _apiKey = "AIzaSyD2KIl0H3a9F-ptCRnNMKFmJfmj89aX0gQ";
+  static const String _apiKey = "ENTER YOUR API KEY HERE";
 
   late final GenerativeModel _model;
 
