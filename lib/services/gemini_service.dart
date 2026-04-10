@@ -1,12 +1,10 @@
 import 'dart:math'; // Import for Random
 import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/user_profile.dart';
 
 class GeminiService {
-  // 🔴 Ensure your API Key is correct here
-  static const String _apiKey = "ENTER YOUR API KEY HERE";
-
   late final GenerativeModel _model;
 
   // List of variations to ensure the elderly don't get bored
@@ -19,7 +17,11 @@ class GeminiService {
   ];
 
   GeminiService() {
-    _model = GenerativeModel(model: 'gemini-2.5-flash', apiKey: _apiKey);
+    final apiKey = dotenv.env['GEMINI_API_KEY'] ?? "";
+    if (apiKey.isEmpty || apiKey == "YOUR_API_KEY_HERE") {
+      debugPrint("🔴 ERROR: API Key is missing or default.");
+    }
+    _model = GenerativeModel(model: 'gemini-2.5-flash', apiKey: apiKey);
   }
 
   Future<String> generateMealPlan(UserProfile profile) async {

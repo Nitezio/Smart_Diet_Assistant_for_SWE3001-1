@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_profile.dart';
 import '../services/gemini_service.dart';
 
@@ -7,7 +9,7 @@ class FoodItem {
   String id;
   String name;
   String details;
-  bool isWarning; // True = Red flag (e.g. High Sugar), False = Green flag (Safe)
+  bool isWarning;
 
   FoodItem({required this.id, required this.name, required this.details, required this.isWarning});
 }
@@ -19,9 +21,9 @@ class AppState with ChangeNotifier {
   String? _currentMealPlan;
   bool _isLoading = false;
   String _selectedRole = 'Elderly';
+  bool _isProfileLoaded = false;
 
   // --- ADMIN DATA (FOOD DATABASE) ---
-  // Initial Mock Data
   final List<FoodItem> _foodDatabase = [
     FoodItem(id: '1', name: "Nasi Lemak", details: "High Fat, High Sodium", isWarning: true),
     FoodItem(id: '2', name: "Teh Tarik", details: "High Sugar (Avoid for Diabetics)", isWarning: true),
@@ -30,12 +32,32 @@ class AppState with ChangeNotifier {
     FoodItem(id: '5', name: "Roti Canai", details: "High Fat, Low Nutritional Value", isWarning: true),
   ];
 
+  AppState() {
+    _loadProfile();
+  }
+
   // Getters
   UserProfile? get user => _user;
   String? get currentMealPlan => _currentMealPlan;
   bool get isLoading => _isLoading;
   String get selectedRole => _selectedRole;
   List<FoodItem> get foodDatabase => _foodDatabase;
+  bool get isProfileLoaded => _isProfileLoaded;
+
+  Future<void> _loadProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    final profileData = prefs.getString('user_profile');
+    if (profileData != null) {
+      try {
+        _user = UserProfile.fromJson(json.decode(profileData));
+        _selectedRole = _user!.role;
+      } catch (e) {
+        debugPrint("Error parsing stored profile: $e");
+      }
+    }
+    _isProfileLoaded = true;
+    notifyListeners();
+  }
 
   // --- ROLE & USER LOGIC ---
   void setRole(String role) {
@@ -45,6 +67,20 @@ class AppState with ChangeNotifier {
 
   void setUser(UserProfile profile) {
     _user = profile;
+    notifyListeners();
+    _saveProfile(profile);
+  }
+
+  Future<void> _saveProfile(UserProfile profile) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_profile', json.encode(profile.toJson()));
+  }
+
+  Future<void> logout() async {
+    _user = null;
+    _currentMealPlan = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('user_profile');
     notifyListeners();
   }
 
@@ -58,11 +94,9 @@ class AppState with ChangeNotifier {
   }
 
   // --- CRUD OPERATIONS FOR FOOD DB ---
-
-  // 1. CREATE
   void addFood(String name, String details, bool isWarning) {
     final newItem = FoodItem(
-        id: DateTime.now().toString(), // Simple unique ID
+        id: DateTime.now().toString(),
         name: name,
         details: details,
         isWarning: isWarning
@@ -71,7 +105,6 @@ class AppState with ChangeNotifier {
     notifyListeners();
   }
 
-  // 2. UPDATE
   void updateFood(String id, String newName, String newDetails, bool newIsWarning) {
     final index = _foodDatabase.indexWhere((item) => item.id == id);
     if (index != -1) {
@@ -85,7 +118,6 @@ class AppState with ChangeNotifier {
     }
   }
 
-  // 3. DELETE
   void deleteFood(String id) {
     _foodDatabase.removeWhere((item) => item.id == id);
     notifyListeners();

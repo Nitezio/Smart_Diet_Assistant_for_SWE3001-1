@@ -129,7 +129,7 @@ class MealPlanTab extends StatelessWidget {
           if (hasPlan) {
             return SingleChildScrollView(
               padding: const EdgeInsets.all(16),
-              child: _buildParsedDietList(state.currentMealPlan!),
+              child: _buildParsedDietList(state.currentMealPlan!, () => state.getDietPlan()),
             );
           }
 
@@ -185,9 +185,30 @@ class MealPlanTab extends StatelessWidget {
     );
   }
 
-  Widget _buildParsedDietList(String planText) {
+  Widget _buildParsedDietList(String planText, VoidCallback onRetry) {
     if (planText.startsWith("Error")) {
-      return Center(child: Text(planText, style: const TextStyle(color: Colors.red, fontSize: 16)));
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.red, size: 60),
+              const SizedBox(height: 16),
+              const Text("Oops! Something went wrong.", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text(planText, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red, fontSize: 16)),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+                label: const Text("Retry"),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+              )
+            ],
+          ),
+        ),
+      );
     }
 
     final lines = planText.split('\n');
@@ -369,6 +390,19 @@ class ProfileTab extends StatelessWidget {
           const Divider(),
           ListTile(title: const Text("Link Caregiver"), leading: const Icon(Icons.people), onTap: (){}),
           ListTile(title: const Text("Settings"), leading: const Icon(Icons.settings), onTap: (){}),
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: OutlinedButton.icon(
+              onPressed: () {
+                Provider.of<AppState>(context, listen: false).logout();
+                Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+              },
+              icon: const Icon(Icons.logout, color: Colors.red),
+              label: const Text("Logout", style: TextStyle(color: Colors.red)),
+              style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red)),
+            ),
+          ),
         ],
       ),
     );

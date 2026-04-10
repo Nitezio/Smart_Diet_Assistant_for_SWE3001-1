@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'providers/app_state.dart';
 import 'screens/role_selection_screen.dart';
 import 'screens/onboarding_screen.dart';
@@ -8,7 +9,10 @@ import 'screens/home_screen.dart';
 import 'screens/admin/admin_login_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
+  
   runApp(
     MultiProvider(
       providers: [ChangeNotifierProvider(create: (_) => AppState())],
@@ -22,25 +26,40 @@ class SmartDietApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Smart Diet Assistant',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4CAF50)),
-        useMaterial3: true,
-        textTheme: const TextTheme(
-          bodyMedium: TextStyle(fontSize: 16),
-          titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        ),
-      ),
-      initialRoute: '/',
-      routes: {
-        '/': (context) => const RoleSelectionScreen(),
-        '/login': (context) => const LoginScreen(),
-        '/onboarding': (context) => const OnboardingScreen(),
-        '/home': (context) => const HomeScreen(),
-        '/admin_login': (context) => const AdminLoginScreen(), // Keeps admin accessible
-        '/admin_dashboard': (context) => const AdminDashboardScreen(),
+    return Consumer<AppState>(
+      builder: (context, state, child) {
+        if (!state.isProfileLoaded) {
+          return const MaterialApp(
+            debugShowCheckedModeBanner: false,
+            home: Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(color: Colors.green),
+              ),
+            ),
+          );
+        }
+
+        return MaterialApp(
+          title: 'Smart Diet Assistant',
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4CAF50)),
+            useMaterial3: true,
+            textTheme: const TextTheme(
+              bodyMedium: TextStyle(fontSize: 16),
+              titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+          ),
+          initialRoute: state.user != null ? '/home' : '/',
+          routes: {
+            '/': (context) => const RoleSelectionScreen(),
+            '/login': (context) => const LoginScreen(),
+            '/onboarding': (context) => const OnboardingScreen(),
+            '/home': (context) => const HomeScreen(),
+            '/admin_login': (context) => const AdminLoginScreen(), // Keeps admin accessible
+            '/admin_dashboard': (context) => const AdminDashboardScreen(),
+          },
+        );
       },
     );
   }
