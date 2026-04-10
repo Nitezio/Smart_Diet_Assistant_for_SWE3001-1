@@ -17,7 +17,7 @@ class RoleSelectionScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Spacer(flex: 1),
-              FaIcon(FontAwesomeIcons.users, size: 60, color: Colors.green),
+              const FaIcon(FontAwesomeIcons.users, size: 60, color: Colors.green),
               const SizedBox(height: 20),
               const Text(
                 "Welcome to\nSmart Diet Assistant",
@@ -90,7 +90,8 @@ class RoleSelectionScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRoleButton(BuildContext context, String title, String subtitle, IconData icon, String roleKey) {
+  // Use dynamic to allow both IconData and FaIconData at the call site
+  Widget _buildRoleButton(BuildContext context, String title, String subtitle, dynamic icon, String roleKey) {
     return InkWell(
       onTap: () {
         // Save role and go to Standard User Login
@@ -110,8 +111,8 @@ class RoleSelectionScreen extends StatelessWidget {
             CircleAvatar(
               backgroundColor: Colors.green,
               child: icon is FaIconData 
-                  ? FaIcon(icon, color: Colors.white, size: 20)
-                  : Icon(icon, color: Colors.white, size: 20),
+                  ? FaIcon(icon as FaIconData, color: Colors.white, size: 20)
+                  : Icon(icon as IconData, color: Colors.white, size: 20),
             ),
             const SizedBox(width: 16),
             Expanded(
