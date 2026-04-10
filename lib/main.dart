@@ -26,40 +26,35 @@ class SmartDietApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AppState>(
-      builder: (context, state, child) {
-        if (!state.isProfileLoaded) {
-          return const MaterialApp(
-            debugShowCheckedModeBanner: false,
-            home: Scaffold(
+    return MaterialApp(
+      title: 'Smart Diet Assistant',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4CAF50)),
+        useMaterial3: true,
+        textTheme: const TextTheme(
+          bodyMedium: TextStyle(fontSize: 16),
+          titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
+      ),
+      home: Consumer<AppState>(
+        builder: (context, state, child) {
+          if (!state.isProfileLoaded) {
+            return const Scaffold(
               body: Center(
                 child: CircularProgressIndicator(color: Colors.green),
               ),
-            ),
-          );
-        }
-
-        return MaterialApp(
-          title: 'Smart Diet Assistant',
-          debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4CAF50)),
-            useMaterial3: true,
-            textTheme: const TextTheme(
-              bodyMedium: TextStyle(fontSize: 16),
-              titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-          ),
-          initialRoute: state.user != null ? '/home' : '/',
-          routes: {
-            '/': (context) => const RoleSelectionScreen(),
-            '/login': (context) => const LoginScreen(),
-            '/onboarding': (context) => const OnboardingScreen(),
-            '/home': (context) => const HomeScreen(),
-            '/admin_login': (context) => const AdminLoginScreen(), // Keeps admin accessible
-            '/admin_dashboard': (context) => const AdminDashboardScreen(),
-          },
-        );
+            );
+          }
+          return state.user != null ? const HomeScreen() : const RoleSelectionScreen();
+        },
+      ),
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/onboarding': (context) => const OnboardingScreen(),
+        '/home': (context) => const HomeScreen(),
+        '/admin_login': (context) => const AdminLoginScreen(),
+        '/admin_dashboard': (context) => const AdminDashboardScreen(),
       },
     );
   }
