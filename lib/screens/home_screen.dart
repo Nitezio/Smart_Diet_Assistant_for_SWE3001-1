@@ -291,7 +291,7 @@ class TrackerTab extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(FontAwesomeIcons.chartPie, size: 80, color: Colors.green),
+            FaIcon(FontAwesomeIcons.chartPie, size: 80, color: Colors.green),
             const SizedBox(height: 20),
             const Text("Calories Today", style: TextStyle(fontSize: 18)),
             const Text("1250 / 1800 kcal", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.green)),

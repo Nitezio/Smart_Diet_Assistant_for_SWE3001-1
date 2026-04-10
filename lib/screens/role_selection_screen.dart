@@ -109,7 +109,7 @@ class RoleSelectionScreen extends StatelessWidget {
           children: [
             CircleAvatar(
               backgroundColor: Colors.green,
-              child: Icon(icon, color: Colors.white, size: 20),
+              child: FaIcon(icon, color: Colors.white, size: 20),
             ),
             const SizedBox(width: 16),
             Expanded(

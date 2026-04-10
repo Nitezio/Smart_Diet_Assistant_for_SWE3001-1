@@ -44,7 +44,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(FontAwesomeIcons.userShield, size: 60, color: Colors.blueGrey),
+                  FaIcon(FontAwesomeIcons.userShield, size: 60, color: Colors.blueGrey),
                   const SizedBox(height: 20),
                   const Text("Admin Access", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
                   const SizedBox(height: 30),

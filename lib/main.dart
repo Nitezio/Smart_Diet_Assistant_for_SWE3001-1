@@ -85,7 +85,7 @@ class LoginScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(FontAwesomeIcons.leaf, size: 80, color: Colors.green),
+              FaIcon(FontAwesomeIcons.leaf, size: 80, color: Colors.green),
               const SizedBox(height: 20),
               const Text("Smart Diet Assistant", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
 
