@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!--
+  ╔══════════════════════════════════════════════════════════════╗
+  ║           SMART DIET ASSISTANT — Opening Gimmick             ║
+  ╠══════════════════════════════════════════════════════════════╣
+  ║  LOGO         → replace  assets/logo.png                     ║
+  ║  FOOD IMGS    → replace  assets/western1.jpg                 ║
+  ║                          assets/western2.jpg                 ║
+  ║                          assets/nasi-kerabu.jpg              ║
+  ║  JOKES        → search   /* JOKES */  in the JS section       ║
+  ║  SCENE TEXT   → search   /* CONTENT */ in the JS section      ║
+  ║  BRAND COLORS → search  :root  in the CSS section            ║
+  ╚══════════════════════════════════════════════════════════════╝
+-->
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Smart Diet Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+
+<style>
+/* ═══════════════════════════════════════════════
+   ROOT — BRAND COLORS & TOKENS
+   ─ Edit these to retheme the entire experience
+   ═══════════════════════════════════════════════ */
+:root {
+  --bg:           #f4efe6;       /* warm cream */
+  --bg2:          #ede7dc;
+  --surface:      rgba(255, 255, 255, 0.72);
+  --border:       rgba(68, 101, 70, 0.13);
+  --border-hi:    rgba(68, 101, 70, 0.28);
+  --accent:       #446546;       /* forest green */
+  --accent2:      #5a8560;       /* lighter green */
+  --accent-warm:  #d88843;       /* amber for nasi kerabu */
+  --danger:       #c0392b;       /* red glow for wrong swipe */
+  --text-hi:      #1c2a1e;       /* near-black, green-tinted */
+  --text-md:      #4d6b50;       /* mid forest green */
+  --text-lo:      #8fa893;       /* muted green-grey */
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-body:    'DM Sans', sans-serif;
+  --font-mono:    'Space Mono', monospace;
+  --ease-snap:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-smooth:  cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ═══════════════════════════════════════════════
+   RESET & BASE
+   ═══════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text-hi);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* ═══════════════════════════════════════════════
+   AMBIENT BACKGROUND — animated mesh + particles
+   ═══════════════════════════════════════════════ */
+#bg-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.ambient-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(130px);
+  opacity: 0.14;
+  pointer-events: none;
+  z-index: 0;
+  animation: orbDrift 18s ease-in-out infinite alternate;
+}
+.orb-1 { width: 600px; height: 600px; background: #446546;  top: -200px; left: -200px; animation-delay: 0s; }
+.orb-2 { width: 500px; height: 500px; background: #d88843;  bottom: -150px; right: -150px; animation-delay: -6s; }
+.orb-3 { width: 400px; height: 400px; background: #7ca87e;  top: 40%; left: 30%; animation-delay: -12s; }
+
+@keyframes orbDrift {
+  0%   { transform: translate(0,0) scale(1); }
+  50%  { transform: translate(40px,-30px) scale(1.08); }
+  100% { transform: translate(-20px,50px) scale(0.94); }
+}
+
+/* ═══════════════════════════════════════════════
+   SCENE WRAPPER
+   ═══════════════════════════════════════════════ */
+#app {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 900px;
+  padding: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.scene {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s var(--ease-smooth);
+}
+.scene.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* ═══════════════════════════════════════════════
+   TYPOGRAPHY
+   ═══════════════════════════════════════════════ */
+.headline {
+  font-family: var(--font-display);
+  font-size: clamp(3.5rem, 10vw, 8rem);
+  line-height: 0.92;
+  letter-spacing: 0.02em;
+  text-align: center;
+  color: var(--text-hi);
+}
+.headline .accent { color: var(--accent); }
+.subline {
+  font-family: var(--font-body);
+  font-size: clamp(1rem, 2.5vw, 1.25rem);
+  color: var(--text-md);
+  text-align: center;
+  font-weight: 300;
+  letter-spacing: 0.05em;
+  margin-top: 1rem;
+}
+.tag {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 1.2rem;
+  opacity: 0.8;
+}
+
+/* ═══════════════════════════════════════════════
+   BUTTONS
+   ═══════════════════════════════════════════════ */
+.btn-row {
+  display: flex;
+  gap: 1.2rem;
+  margin-top: 3rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.btn {
+  position: relative;
+  padding: 0.9rem 2.8rem;
+  border: 1.5px solid var(--border-hi);
+  background: var(--surface);
+  color: var(--text-hi);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  border-radius: 4px;
+  backdrop-filter: blur(12px);
+  transition: all 0.25s var(--ease-snap);
+  overflow: hidden;
+}
+.btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.06), transparent);
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.btn:hover::before { opacity: 1; }
+.btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 30px rgba(68, 101, 70, 0.18), inset 0 0 20px rgba(68, 101, 70, 0.05);
+  transform: translateY(-2px);
+}
+.btn:active { transform: translateY(0) scale(0.98); }
+.btn.primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  font-weight: 700;
+}
+.btn.primary:hover {
+  background: #527a54;
+  color: #fff;
+  box-shadow: 0 0 50px rgba(68, 101, 70, 0.4);
+}
+.btn.danger-btn {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.btn.danger-btn:hover {
+  box-shadow: 0 0 30px rgba(255, 43, 78, 0.3);
+}
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* ═══════════════════════════════════════════════
+   SCENE 1 — OPENING QUESTION
+   ═══════════════════════════════════════════════ */
+#scene-1 .headline { margin-top: 0; }
+
+.joke-box {
+  margin-top: 2rem;
+  padding: 1rem 2rem;
+  border: 1px solid var(--danger);
+  border-radius: 4px;
+  background: rgba(255, 43, 78, 0.06);
+  color: var(--danger);
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  letter-spacing: 0.08em;
+  text-align: center;
+  max-width: 480px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.4s var(--ease-snap), transform 0.4s var(--ease-snap);
+}
+.joke-box.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.joke-box.shake {
+  animation: shakeIt 0.5s var(--ease-snap);
+}
+@keyframes shakeIt {
+  0%,100% { transform: translateX(0); }
+  20%      { transform: translateX(-8px) rotate(-1deg); }
+  40%      { transform: translateX(8px) rotate(1deg); }
+  60%      { transform: translateX(-5px); }
+  80%      { transform: translateX(5px); }
+}
+
+/* ═══════════════════════════════════════════════
+   SCENE 2 — SWIPE CARDS
+   ═══════════════════════════════════════════════ */
+#scene-2 {
+  gap: 0;
+}
+.swipe-hint {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  color: var(--text-md);
+  text-transform: uppercase;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+.swipe-hint span { color: var(--accent); font-weight: 700; }
+
+.card-stage {
+  position: relative;
+  width: 340px;
+  height: 440px;
+  perspective: 1200px;
+  flex-shrink: 0;
+}
+.food-card {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+  cursor: grab;
+  user-select: none;
+  transform-origin: center bottom;
+  transition: box-shadow 0.3s, border-color 0.3s;
+  box-shadow: 0 20px 60px rgba(68,101,70,0.12), 0 4px 16px rgba(0,0,0,0.07);
+}
+.food-card:active { cursor: grabbing; }
+.food-card.dragging {
+  transition: none;
+}
+
+.card-img {
+  width: 100%;
+  height: 65%;
+  object-fit: cover;
+  display: block;
+  background: linear-gradient(135deg, #1a2240 0%, #0d1525 100%);
+  position: relative;
+}
+.card-img-placeholder {
+  width: 100%;
+  height: 65%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 3rem;
+  font-family: var(--font-mono);
+  color: var(--text-lo);
+}
+.card-img-placeholder span {
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-lo);
+}
+.card-img-placeholder.western1 { background: linear-gradient(135deg, #d8e8da, #c2d8c6); }
+.card-img-placeholder.western2 { background: linear-gradient(135deg, #cfe0d2, #bdd2c1); }
+.card-img-placeholder.nasi     { background: linear-gradient(135deg, #f0dfc0, #e5c98e); }
+
+.card-body {
+  padding: 1.4rem 1.6rem;
+  flex: 1;
+}
+.card-tag {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+.card-tag.generic { color: var(--accent2); }
+.card-tag.local   { color: var(--accent-warm); }
+.card-name {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  line-height: 1;
+  color: var(--text-hi);
+  margin-bottom: 0.4rem;
+}
+.card-desc {
+  font-size: 0.82rem;
+  color: var(--text-md);
+  font-weight: 300;
+  line-height: 1.5;
+}
+
+/* swipe directional indicators */
+.swipe-indicator {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0.4rem 0.9rem;
+  border-radius: 4px;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  letter-spacing: 0.1em;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  z-index: 10;
+}
+.swipe-indicator.left  { left: 12px;  color: var(--danger);  border: 2px solid var(--danger);  background: rgba(192,57,43,0.1); }
+.swipe-indicator.right { right: 12px; color: var(--accent);  border: 2px solid var(--accent);  background: rgba(68,101,70,0.1); }
+
+/* swipe buttons (fallback / mobile) */
+.swipe-btns {
+  display: flex;
+  gap: 2.5rem;
+  margin-top: 2rem;
+  align-items: center;
+}
+.swipe-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-hi);
+  background: var(--surface);
+  color: var(--text-hi);
+  font-size: 1.3rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s var(--ease-snap);
+  backdrop-filter: blur(12px);
+}
+.swipe-btn:hover {
+  transform: scale(1.1);
+}
+.swipe-btn.left-btn:hover  { border-color: var(--danger); color: var(--danger); box-shadow: 0 0 20px rgba(192,57,43,0.25); }
+.swipe-btn.right-btn:hover { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 20px rgba(68,101,70,0.25); }
+
+.card-counter {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  color: var(--text-lo);
+  margin-top: 1.2rem;
+}
+
+/* ═══════════════════════════════════════════════
+   RED GLOW OVERLAY — wrong swipe feedback
+   ═══════════════════════════════════════════════ */
+#red-glow {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 30%, rgba(255,10,40,0.22) 100%);
+  box-shadow: inset 0 0 120px rgba(255,10,40,0.35);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+#red-glow.flash { opacity: 1; }
+#red-glow.pulse {
+  animation: redPulse 1.2s var(--ease-smooth) forwards;
+}
+@keyframes redPulse {
+  0%   { opacity: 0; }
+  15%  { opacity: 1; }
+  40%  { opacity: 0.7; }
+  65%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.wrong-toast {
+  position: fixed;
+  bottom: 2.5rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  z-index: 1000;
+  background: rgba(255,43,78,0.12);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  padding: 0.7rem 1.8rem;
+  border-radius: 4px;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s, transform 0.3s var(--ease-snap);
+  text-transform: uppercase;
+}
+.wrong-toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ═══════════════════════════════════════════════
+   SCENE 3 — WHY?
+   ═══════════════════════════════════════════════ */
+#scene-3 .content-block {
+  max-width: 640px;
+  text-align: center;
+}
+.why-title {
+  font-family: var(--font-display);
+  font-size: clamp(4rem, 12vw, 9rem);
+  line-height: 0.85;
+  color: var(--text-hi);
+  letter-spacing: 0.02em;
+  margin-bottom: 2rem;
+}
+.why-title em {
+  font-style: normal;
+  color: var(--accent);
+  display: block;
+}
+
+.problem-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 2.5rem 0;
+  text-align: left;
+}
+.problem-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem 1.4rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  backdrop-filter: blur(10px);
+  font-size: 0.92rem;
+  color: var(--text-md);
+  line-height: 1.5;
+  opacity: 0;
+  transform: translateX(-20px);
+  transition: opacity 0.5s var(--ease-snap), transform 0.5s var(--ease-snap);
+}
+.problem-list li.reveal {
+  opacity: 1;
+  transform: translateX(0);
+}
+.problem-list li::before {
+  content: '//';
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--danger);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.problem-list li strong {
+  color: var(--text-hi);
+  font-weight: 500;
+}
+
+.why-quote {
+  font-size: 1rem;
+  color: var(--text-hi);
+  font-style: italic;
+  font-weight: 300;
+  letter-spacing: 0.03em;
+  line-height: 1.6;
+  border-left: 2px solid var(--accent);
+  padding-left: 1.2rem;
+  text-align: left;
+  margin: 1.5rem 0 2.5rem;
+  opacity: 0;
+  transition: opacity 0.6s 0.8s var(--ease-snap);
+}
+.why-quote.reveal { opacity: 1; }
+
+/* ═══════════════════════════════════════════════
+   SCENE 4 — SOLUTION REVEAL
+   ═══════════════════════════════════════════════ */
+#scene-4 {
+  text-align: center;
+}
+.solution-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.3em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 2rem;
+  opacity: 0;
+  transition: opacity 0.6s 0.3s;
+}
+#scene-4.active .solution-eyebrow { opacity: 1; }
+
+.logo-ring {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  margin: 0 auto 2.5rem;
+}
+.logo-ring::before, .logo-ring::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+}
+.logo-ring::before {
+  border: 1px solid rgba(68, 101, 70, 0.3);
+  animation: ringPulse 3s ease-in-out infinite;
+}
+.logo-ring::after {
+  border: 1px solid rgba(68, 101, 70, 0.14);
+  inset: -14px;
+  animation: ringPulse 3s ease-in-out infinite 1.5s;
+}
+@keyframes ringPulse {
+  0%,100% { transform: scale(1);    opacity: 0.8; }
+  50%      { transform: scale(1.04); opacity: 0.3; }
+}
+
+.logo-container {
+  width: 160px;
+  height: 160px;
+  margin: 30px auto;
+  border-radius: 50%;
+  border: 1px solid rgba(68, 101, 70, 0.3);
+  background: rgba(68, 101, 70, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  opacity: 0;
+  transform: scale(0.7);
+  transition: opacity 0.8s var(--ease-snap), transform 0.8s var(--ease-snap);
+  box-shadow: 0 0 60px rgba(68, 101, 70, 0.18), 0 0 120px rgba(68, 101, 70, 0.07);
+  animation: logoGlow 4s ease-in-out infinite;
+  animation-play-state: paused;
+}
+.logo-container.revealed {
+  opacity: 1;
+  transform: scale(1);
+  animation-play-state: running;
+}
+@keyframes logoGlow {
+  0%,100% { box-shadow: 0 0 60px rgba(68,101,70,0.18), 0 0 120px rgba(68,101,70,0.07); }
+  50%      { box-shadow: 0 0 90px rgba(68,101,70,0.30), 0 0 180px rgba(68,101,70,0.12); }
+}
+
+.logo-inner {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 20px rgba(68,101,70,0.4));
+  animation: logoSpin 18s linear infinite;
+  animation-play-state: paused;
+}
+.logo-inner.spinning { animation-play-state: running; }
+
+/* placeholder when logo.png is missing */
+.logo-placeholder {
+  width: 120px;
+  height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+}
+.logo-placeholder .logo-letter {
+  font-family: var(--font-display);
+  font-size: 3.5rem;
+  line-height: 1;
+  color: var(--accent);
+  filter: drop-shadow(0 0 16px rgba(68,101,70,0.5));
+}
+.logo-placeholder .logo-abbr {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.25em;
+  color: var(--accent2);
+  text-transform: uppercase;
+}
+
+@keyframes logoSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.solution-title {
+  font-family: var(--font-display);
+  font-size: clamp(2.8rem, 7vw, 5.5rem);
+  line-height: 0.92;
+  color: var(--text-hi);
+  letter-spacing: 0.03em;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.7s 0.4s var(--ease-snap), transform 0.7s 0.4s var(--ease-snap);
+}
+#scene-4.active.revealed .solution-title {
+  opacity: 1;
+  transform: translateY(0);
+}
+.solution-title .hi { color: var(--accent); }
+
+.solution-tagline {
+  font-size: 1rem;
+  color: var(--text-md);
+  font-weight: 300;
+  letter-spacing: 0.06em;
+  margin-top: 0.8rem;
+  line-height: 1.6;
+  opacity: 0;
+  transition: opacity 0.7s 0.7s var(--ease-snap);
+}
+#scene-4.active.revealed .solution-tagline { opacity: 1; }
+
+.solution-line {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  margin-top: 0.5rem;
+  opacity: 0;
+  transition: opacity 0.7s 1s var(--ease-snap);
+}
+#scene-4.active.revealed .solution-line { opacity: 1; }
+
+/* ═══════════════════════════════════════════════
+   SCENE TRANSITION — fade + slight lift
+   ═══════════════════════════════════════════════ */
+.scene-enter {
+  /* No 'forwards' — .scene.active already holds opacity:1 after the animation ends.
+     'forwards' was causing every visited scene to stay at opacity:1 via fill mode. */
+  animation: sceneEnter 0.7s var(--ease-snap);
+}
+@keyframes sceneEnter {
+  from { opacity: 0; transform: translateY(24px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+/* ═══════════════════════════════════════════════
+   STEP DOTS
+   ═══════════════════════════════════════════════ */
+#step-dots {
+  position: fixed;
+  right: 2rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  z-index: 50;
+  opacity: 0;
+  transition: opacity 0.5s;
+}
+#step-dots.visible { opacity: 1; }
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1px solid var(--border-hi);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.3s var(--ease-snap);
+}
+.dot.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(68,101,70,0.5);
+  transform: scale(1.3);
+}
+
+/* ═══════════════════════════════════════════════
+   PROGRESS BAR (scene 2)
+   ═══════════════════════════════════════════════ */
+.progress-track {
+  width: 200px;
+  height: 2px;
+  background: var(--border);
+  border-radius: 99px;
+  margin-top: 1rem;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+  transition: width 0.5s var(--ease-snap);
+  box-shadow: 0 0 8px rgba(68,101,70,0.45);
+}
+
+/* ═══════════════════════════════════════════════
+   UTILITY
+   ═══════════════════════════════════════════════ */
+.hidden { display: none !important; }
+.mt-sm  { margin-top: 0.8rem; }
+.mt-md  { margin-top: 1.6rem; }
+.mt-lg  { margin-top: 2.5rem; }
+
+/* ═══════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════ */
+@media (max-width: 600px) {
+  .card-stage { width: 290px; height: 400px; }
+  .btn { padding: 0.8rem 1.8rem; font-size: 0.9rem; }
+  #step-dots { right: 0.8rem; }
+}
+</style>
+</head>
+
+<body>
+
+<!-- ─── Ambient background ─── -->
+<div class="ambient-orb orb-1"></div>
+<div class="ambient-orb orb-2"></div>
+<div class="ambient-orb orb-3"></div>
+<canvas id="bg-canvas"></canvas>
+
+<!-- ─── Red glow overlay ─── -->
+<div id="red-glow"></div>
+
+<!-- ─── Wrong-swipe toast ─── -->
+<div class="wrong-toast" id="wrong-toast">— that is not a valid option —</div>
+
+<!-- ─── Step dots ─── -->
+<div id="step-dots">
+  <div class="dot active" data-scene="1" tabindex="0" role="button" aria-label="Scene 1"></div>
+  <div class="dot"        data-scene="2" tabindex="0" role="button" aria-label="Scene 2"></div>
+  <div class="dot"        data-scene="3" tabindex="0" role="button" aria-label="Scene 3"></div>
+  <div class="dot"        data-scene="4" tabindex="0" role="button" aria-label="Scene 4"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     APP
+     ═══════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- ──────────────────────────────
+       SCENE 1 — Opening question
+       ────────────────────────────── -->
+  <section class="scene active" id="scene-1" aria-label="Scene 1">
+    <div class="tag">&#9632; Smart Diet Assistant — 2025</div>
+    <h1 class="headline">
+      Do you like<br/>
+      <span class="accent">Malaysian</span><br/>
+      food?
+    </h1>
+    <p class="subline">Be honest. Your answer matters.</p>
+
+    <div class="btn-row">
+      <button class="btn primary" id="btn-yes" aria-label="Yes">Yes</button>
+      <button class="btn danger-btn" id="btn-no"  aria-label="No">No</button>
+    </div>
+
+    <!-- joke box shown on No clicks -->
+    <div class="joke-box" id="joke-box" role="alert" aria-live="polite"></div>
+  </section>
+
+  <!-- ──────────────────────────────
+       SCENE 2 — Swipe cards
+       ────────────────────────────── -->
+  <section class="scene" id="scene-2" aria-label="Scene 2: Food Decisions">
+    <p class="swipe-hint">← Swipe <span>left or right</span> to decide →</p>
+
+    <div class="card-stage" id="card-stage" role="region" aria-label="Food card">
+
+      <!-- Card 1 — Western healthy #1 -->
+      <div class="food-card" id="card-0" aria-label="Grilled Salmon Bowl">
+        <div class="card-img-placeholder western1">
+          <img
+            src="assets/western1.jpg"
+            alt="Grilled Salmon Bowl"
+            style="width:100%;height:100%;object-fit:cover;display:block;"
+            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+          />
+          <div style="display:none;width:100%;height:100%;flex-direction:column;align-items:center;justify-content:center;gap:0.5rem;">
+            <span style="font-size:3rem;">🐟</span>
+            <span>assets/western1.jpg</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag generic">// Recommended Option</div>
+          <div class="card-name">Grilled Salmon Bowl</div>
+          <div class="card-desc">Omega-3 rich. Low glycemic. Nutritionist approved. Ideal for diabetes management.</div>
+        </div>
+        <div class="swipe-indicator left"  aria-hidden="true">NOPE</div>
+        <div class="swipe-indicator right" aria-hidden="true">LIKE</div>
+      </div>
+
+      <!-- Card 2 — Western healthy #2 -->
+      <div class="food-card" id="card-1" aria-label="Quinoa Veggie Wrap">
+        <div class="card-img-placeholder western2">
+          <img
+            src="assets/western2.jpg"
+            alt="Quinoa Veggie Wrap"
+            style="width:100%;height:100%;object-fit:cover;display:block;"
+            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+          />
+          <div style="display:none;width:100%;height:100%;flex-direction:column;align-items:center;justify-content:center;gap:0.5rem;">
+            <span style="font-size:3rem;">🥗</span>
+            <span>assets/western2.jpg</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag generic">// Recommended Option</div>
+          <div class="card-name">Quinoa Veggie Wrap</div>
+          <div class="card-desc">High fibre. Low carb. Gluten-conscious. Perfect blood sugar profile.</div>
+        </div>
+        <div class="swipe-indicator left"  aria-hidden="true">NOPE</div>
+        <div class="swipe-indicator right" aria-hidden="true">LIKE</div>
+      </div>
+
+      <!-- Card 3 — Nasi Kerabu -->
+      <div class="food-card" id="card-2" aria-label="Nasi Kerabu" style="border-color: rgba(255,179,71,0.3);">
+        <div class="card-img-placeholder nasi">
+          <img
+            src="assets/nasi-kerabu.jpg"
+            alt="Nasi Kerabu"
+            style="width:100%;height:100%;object-fit:cover;display:block;"
+            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+          />
+          <div style="display:none;width:100%;height:100%;flex-direction:column;align-items:center;justify-content:center;gap:0.5rem;">
+            <span style="font-size:3rem;">🍚</span>
+            <span>assets/nasi-kerabu.jpg</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-tag local">// Local Heritage</div>
+          <div class="card-name" style="color: var(--accent-warm);">Nasi Kerabu</div>
+          <div class="card-desc">Blue rice. Fresh ulam. Rich heritage. A dish with identity. A dish that feels like <em>home</em>.</div>
+        </div>
+        <div class="swipe-indicator left"  aria-hidden="true">NOPE</div>
+        <div class="swipe-indicator right" aria-hidden="true">LIKE</div>
+      </div>
+
+    </div><!-- /card-stage -->
+
+    <!-- Swipe action buttons -->
+    <div class="swipe-btns" role="group" aria-label="Swipe controls">
+      <button class="swipe-btn left-btn"  aria-label="Swipe left">✕</button>
+      <button class="swipe-btn right-btn" aria-label="Swipe right">♥</button>
+    </div>
+
+    <div class="card-counter" id="card-counter" aria-live="polite">Card 1 of 3</div>
+
+    <div class="progress-track">
+      <div class="progress-fill" id="card-progress" style="width: 33.3%"></div>
+    </div>
+
+    <!-- Shown only on card 3 (Nasi Kerabu) after swipe is blocked -->
+    <div id="why-btn-row" style="opacity:0; pointer-events:none; margin-top:1.4rem; transition: opacity 0.5s 0.2s;">
+      <button class="btn primary" id="btn-why-cant">WHY can't I pick?</button>
+    </div>
+  </section>
+
+  <!-- ──────────────────────────────
+       SCENE 3 — The Why
+       ────────────────────────────── -->
+  <section class="scene" id="scene-3" aria-label="Scene 3: The Problem">
+    <div class="content-block">
+      <div class="why-title">
+        WHY <em>can't</em><br/>you choose?
+      </div>
+
+      <ul class="problem-list" id="problem-list" role="list">
+        <li>Most diet apps were <strong>not designed for Malaysian eating culture.</strong></li>
+        <li>They recommend foods <strong>you've never grown up eating.</strong></li>
+        <li>Calorie counts mean nothing when the food <strong>feels foreign.</strong></li>
+        <li>Real dietary adherence requires <strong>cultural identity.</strong></li>
+      </ul>
+
+      <blockquote class="why-quote" id="why-quote">
+        "Most diet apps understand calories.<br/>
+        <strong>Few understand culture.</strong>"
+      </blockquote>
+
+      <div class="btn-row" style="margin-top: 0;">
+        <button class="btn primary" id="btn-solution">See the solution</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ──────────────────────────────
+       SCENE 4 — Solution reveal
+       ────────────────────────────── -->
+  <section class="scene" id="scene-4" aria-label="Scene 4: The Solution">
+    <div class="solution-eyebrow">// The answer was never far away</div>
+
+    <div class="logo-ring">
+      <div class="logo-container" id="logo-container">
+        <!-- LOGO: replace assets/logo.png with your actual logo file -->
+        <img
+          id="logo-img"
+          src="assets/logo.png"
+          alt="Smart Diet Assistant Logo"
+          class="logo-inner"
+          onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex';"
+        />
+        <!-- Fallback placeholder shown when logo.png is missing -->
+        <div class="logo-placeholder" id="logo-fallback" style="display:none;">
+          <div class="logo-letter">SDA</div>
+          <div class="logo-abbr">est. 2025</div>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="solution-title">
+      Smart<br/><span class="hi">Diet</span><br/>Assistant
+    </h2>
+    <p class="solution-tagline">
+      Localized nutrition guidance for real Malaysian food.
+      <span class="solution-line">The diet assistant that understands home.</span>
+    </p>
+  </section>
+
+</div><!-- /app -->
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   SMART DIET ASSISTANT — Opening Gimmick
+   ─────────────────────────────────────────────────────────────
+   Scene management, animations, swipe logic, reveal sequences.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────
+   JOKES — edit these freely
+   ───────────────────────────── */
+const NO_JOKES = [
+  "Fake Malaysian detected.",
+  "Access denied. Identity crisis in progress.",
+  "That answer feels legally suspicious.",
+  "Your MyKad has been temporarily revoked.",
+  "Error 404: Malaysian soul not found.",
+  "Bro. BRO. Are you okay?",
+  "We've alerted your mak.",
+  "This answer will be reported to JAKIM.",
+  "Recalibrating your taste buds…",
+  "The nasi lemak is very disappointed in you.",
+];
+
+/* ─────────────────────────────
+   WRONG SWIPE TOASTS
+   ───────────────────────────── */
+const SWIPE_TOASTS = [
+  "— left or right is not what you need —",
+  "— the problem isn't the direction —",
+  "— something else is missing here —",
+];
+
+/* ─────────────────────────────
+   STATE
+   ───────────────────────────── */
+let currentScene  = 1;
+let noCount       = 0;
+let currentCard   = 0;
+let swipeWarnings = 0;
+let isDragging    = false;
+let dragStartX    = 0;
+let dragStartY    = 0;
+let dragOffsetX   = 0;
+let isTransitioning = false;
+
+/* ─────────────────────────────
+   DOM refs
+   ───────────────────────────── */
+const scenes       = document.querySelectorAll('.scene');
+const dots         = document.querySelectorAll('.dot');
+const stepDots     = document.getElementById('step-dots');
+const redGlow      = document.getElementById('red-glow');
+const wrongToast   = document.getElementById('wrong-toast');
+const jokeBox      = document.getElementById('joke-box');
+const btnYes       = document.getElementById('btn-yes');
+const btnNo        = document.getElementById('btn-no');
+const cardStage    = document.getElementById('card-stage');
+const cardCounter  = document.getElementById('card-counter');
+const cardProgress = document.getElementById('card-progress');
+const btnSolution  = document.getElementById('btn-solution');
+const logoContainer= document.getElementById('logo-container');
+const logoImg      = document.getElementById('logo-img');
+const problemList  = document.getElementById('problem-list');
+const whyQuote     = document.getElementById('why-quote');
+
+/* ─────────────────────────────
+   PARTICLE CANVAS
+   ───────────────────────────── */
+(function initParticles() {
+  const canvas = document.getElementById('bg-canvas');
+  const ctx    = canvas.getContext('2d');
+  let W, H, particles = [];
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  class Particle {
+    constructor() { this.reset(true); }
+    reset(init) {
+      this.x  = Math.random() * W;
+      this.y  = init ? Math.random() * H : H + 10;
+      this.vy = -(Math.random() * 0.4 + 0.1);
+      this.vx = (Math.random() - 0.5) * 0.15;
+      this.r  = Math.random() * 1.2 + 0.3;
+      this.a  = Math.random() * 0.18 + 0.04;
+      const hues = [128, 35, 95]; /* forest green, amber, sage */
+      this.hue = hues[Math.floor(Math.random() * hues.length)];
+    }
+    update() {
+      this.x += this.vx;
+      this.y += this.vy;
+      if (this.y < -10) this.reset(false);
+    }
+    draw() {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${this.hue}, 90%, 70%, ${this.a})`;
+      ctx.fill();
+    }
+  }
+
+  for (let i = 0; i < 90; i++) particles.push(new Particle());
+
+  function loop() {
+    ctx.clearRect(0, 0, W, H);
+    particles.forEach(p => { p.update(); p.draw(); });
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+
+/* ═══════════════════════════════════════════════
+   SCENE MANAGEMENT
+   ═══════════════════════════════════════════════ */
+function goToScene(n) {
+  if (isTransitioning || n === currentScene) return;
+  isTransitioning = true;
+
+  const prev = document.getElementById(`scene-${currentScene}`);
+  const next = document.getElementById(`scene-${n}`);
+
+  /* Kill any lingering scene-enter animation on prev first, then fade it out */
+  prev.classList.remove('scene-enter');
+  prev.style.transition    = 'opacity 0.22s ease';
+  prev.style.opacity       = '0';
+  prev.style.pointerEvents = 'none';
+
+  setTimeout(() => {
+    /* Fully deactivate prev — clear ALL inline styles so CSS `.scene` rule takes over */
+    prev.classList.remove('active');
+    prev.style.transition    = '';
+    prev.style.opacity       = '';   /* let CSS `.scene { opacity:0 }` handle it */
+    prev.style.pointerEvents = '';
+
+    /* Activate next cleanly */
+    next.classList.remove('scene-enter'); /* remove stale class before reflow */
+    next.classList.add('active');
+    void next.offsetWidth;               /* force reflow so animation re-triggers */
+    next.classList.add('scene-enter');
+
+    currentScene = n;
+    updateDots();
+    onSceneEnter(n);
+    isTransitioning = false;
+  }, 280);
+}
+
+function updateDots() {
+  dots.forEach((d, i) => d.classList.toggle('active', i + 1 === currentScene));
+  stepDots.classList.toggle('visible', currentScene > 1);
+}
+
+function onSceneEnter(n) {
+  if (n === 2) initCards();
+  if (n === 3) startWhyReveal();
+  if (n === 4) startSolutionReveal();
+}
+
+/* ═══════════════════════════════════════════════
+   SCENE 1 — YES / NO LOGIC
+   ═══════════════════════════════════════════════ */
+btnYes.addEventListener('click', () => {
+  jokeBox.classList.remove('visible');
+  setTimeout(() => goToScene(2), 200);
+});
+
+btnNo.addEventListener('click', () => {
+  const joke = NO_JOKES[noCount % NO_JOKES.length];
+  noCount++;
+  jokeBox.textContent = joke;
+  jokeBox.classList.remove('shake');
+  void jokeBox.offsetWidth; // reflow
+  jokeBox.classList.add('visible', 'shake');
+  btnNo.style.transform = 'scale(0.95)';
+  setTimeout(() => btnNo.style.transform = '', 150);
+});
+
+/* keyboard accessibility for buttons */
+document.querySelectorAll('.btn').forEach(btn => {
+  btn.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); btn.click(); }
+  });
+});
+
+/* ═══════════════════════════════════════════════
+   SCENE 2 — CARDS & SWIPE
+   ═══════════════════════════════════════════════ */
+const CARDS = [
+  { id: 'card-0' },
+  { id: 'card-1' },
+  { id: 'card-2' },
+];
+
+function initCards() {
+  currentCard = 0;
+  CARDS.forEach((c, i) => {
+    const el = document.getElementById(c.id);
+    el.style.transform = '';
+    el.style.opacity   = '';
+    el.style.zIndex    = CARDS.length - i;
+    el.style.transition= '';
+    // stack offset for depth illusion
+    el.style.transform = `scale(${1 - i * 0.04}) translateY(${i * 10}px)`;
+  });
+  updateCardUI();
+  setupSwipeInteraction();
+}
+
+const whyBtnRow = document.getElementById('why-btn-row');
+document.getElementById('btn-why-cant').addEventListener('click', () => goToScene(3));
+
+function updateCardUI() {
+  const pct = ((currentCard + 1) / CARDS.length) * 100;
+  cardProgress.style.width = pct + '%';
+  cardCounter.textContent  = `Card ${currentCard + 1} of ${CARDS.length}`;
+
+  /* show WHY button only on Nasi Kerabu (card index 2) */
+  if (currentCard === 2) {
+    whyBtnRow.style.opacity       = '1';
+    whyBtnRow.style.pointerEvents = 'all';
+  } else {
+    whyBtnRow.style.opacity       = '0';
+    whyBtnRow.style.pointerEvents = 'none';
+  }
+}
+
+/* ─── Red glow feedback ─── */
+function triggerRedGlow() {
+  redGlow.classList.remove('pulse');
+  void redGlow.offsetWidth;
+  redGlow.classList.add('pulse');
+  setTimeout(() => redGlow.classList.remove('pulse'), 1400);
+
+  const msg = SWIPE_TOASTS[swipeWarnings % SWIPE_TOASTS.length];
+  swipeWarnings++;
+  wrongToast.textContent = msg;
+  wrongToast.classList.remove('visible');
+  void wrongToast.offsetWidth;
+  wrongToast.classList.add('visible');
+  setTimeout(() => wrongToast.classList.remove('visible'), 2200);
+}
+
+/* ─── Advance to next card (restack + UI update, no exit animation) ─── */
+function advanceCard() {
+  currentCard++;
+  if (currentCard >= CARDS.length) {
+    goToScene(3);
+    return;
+  }
+  // re-stack remaining cards
+  CARDS.slice(currentCard).forEach((c, i) => {
+    const el = document.getElementById(c.id);
+    el.style.transition = 'transform 0.4s 0.05s';
+    el.style.transform  = `scale(${1 - i * 0.04}) translateY(${i * 10}px)`;
+    el.style.zIndex     = CARDS.length - i;
+  });
+  setTimeout(updateCardUI, 100);
+}
+
+/* ─── Handle a swipe attempt (left or right) ─── */
+function handleSwipeAttempt(dir) {
+  if (currentCard >= CARDS.length) return;
+  const card = document.getElementById(CARDS[currentCard].id);
+  if (!card) return;
+
+  if (currentCard === 2) {
+    /* Nasi Kerabu — block swipe, red glow + nudge */
+    triggerRedGlow();
+    const nudge = dir === 'left' ? -14 : 14;
+    const rot   = dir === 'left' ? -2 : 2;
+    card.style.transition = 'transform 0.35s var(--ease-snap)';
+    card.style.transform  = `translateX(${nudge}px) rotate(${rot}deg) scale(1)`;
+    setTimeout(() => { card.style.transform = 'scale(1) translateY(0)'; }, 320);
+  } else {
+    /* Western cards — fly off naturally */
+    const flyX = dir === 'left' ? -700 : 700;
+    const flyR = dir === 'left' ? -22 : 22;
+    card.style.transition = 'transform 0.42s var(--ease-snap), opacity 0.42s';
+    card.style.transform  = `translateX(${flyX}px) rotate(${flyR}deg) scale(0.88)`;
+    card.style.opacity    = '0';
+    setTimeout(() => advanceCard(), 330);
+  }
+}
+
+/* ─── Drag / Swipe interaction ─── */
+function setupSwipeInteraction() {
+  const el = document.getElementById(CARDS[currentCard].id);
+  if (!el) return;
+
+  function getActiveCard() {
+    return document.getElementById(CARDS[currentCard]?.id);
+  }
+
+  function onPointerDown(e) {
+    if (currentCard >= CARDS.length) return;
+    isDragging  = true;
+    dragStartX  = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
+    dragStartY  = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
+    dragOffsetX = 0;
+    const card = getActiveCard();
+    if (card) card.style.transition = 'none';
+  }
+
+  function onPointerMove(e) {
+    if (!isDragging) return;
+    const x = e.clientX ?? e.touches?.[0]?.clientX ?? dragStartX;
+    dragOffsetX = x - dragStartX;
+    const rotate = dragOffsetX * 0.06;
+    const card = getActiveCard();
+    if (!card) return;
+
+    card.style.transform = `translateX(${dragOffsetX}px) rotate(${rotate}deg) translateY(0px) scale(1)`;
+
+    // show directional indicator
+    const indLeft  = card.querySelector('.swipe-indicator.left');
+    const indRight = card.querySelector('.swipe-indicator.right');
+    const threshold = 50;
+    if (dragOffsetX < -threshold) {
+      indLeft.style.opacity  = Math.min(1, Math.abs(dragOffsetX) / 120);
+      indRight.style.opacity = '0';
+    } else if (dragOffsetX > threshold) {
+      indRight.style.opacity = Math.min(1, dragOffsetX / 120);
+      indLeft.style.opacity  = '0';
+    } else {
+      indLeft.style.opacity  = '0';
+      indRight.style.opacity = '0';
+    }
+  }
+
+  function onPointerUp(e) {
+    if (!isDragging) return;
+    isDragging = false;
+    const card = getActiveCard();
+    if (!card) return;
+
+    // hide indicators
+    card.querySelectorAll('.swipe-indicator').forEach(i => i.style.opacity = '0');
+
+    const threshold = 80;
+    if (Math.abs(dragOffsetX) > threshold) {
+      const dir = dragOffsetX < 0 ? 'left' : 'right';
+      handleSwipeAttempt(dir);
+    } else {
+      card.style.transition = 'transform 0.4s var(--ease-snap)';
+      card.style.transform  = `scale(1) translateY(0)`;
+    }
+    dragOffsetX = 0;
+  }
+
+  cardStage.addEventListener('mousedown',  onPointerDown);
+  cardStage.addEventListener('touchstart', onPointerDown, { passive: true });
+  window.addEventListener('mousemove',  onPointerMove);
+  window.addEventListener('touchmove',  onPointerMove, { passive: true });
+  window.addEventListener('mouseup',    onPointerUp);
+  window.addEventListener('touchend',   onPointerUp);
+}
+
+/* ─── Swipe buttons — western cards fly off, nasi kerabu triggers red glow ─── */
+document.querySelector('.left-btn').addEventListener('click', () => {
+  if (currentScene === 2) handleSwipeAttempt('left');
+});
+document.querySelector('.right-btn').addEventListener('click', () => {
+  if (currentScene === 2) handleSwipeAttempt('right');
+});
+
+/* keyboard swipe simulation */
+document.addEventListener('keydown', (e) => {
+  if (currentScene !== 2) return;
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); handleSwipeAttempt('left');  }
+  if (e.key === 'ArrowRight') { e.preventDefault(); handleSwipeAttempt('right'); }
+  if (e.key === 'Enter' || e.key === 'ArrowDown') {
+    e.preventDefault();
+    handleSwipeAttempt('right');
+  }
+});
+
+/* ═══════════════════════════════════════════════
+   SCENE 3 — WHY REVEAL
+   ═══════════════════════════════════════════════ */
+function startWhyReveal() {
+  const items = problemList.querySelectorAll('li');
+  items.forEach((li, i) => {
+    setTimeout(() => li.classList.add('reveal'), 200 + i * 200);
+  });
+  setTimeout(() => whyQuote.classList.add('reveal'), 1100);
+}
+
+btnSolution.addEventListener('click', () => goToScene(4));
+
+/* ═══════════════════════════════════════════════
+   SCENE 4 — SOLUTION REVEAL
+   ═══════════════════════════════════════════════ */
+function startSolutionReveal() {
+  setTimeout(() => {
+    logoContainer.classList.add('revealed');
+    logoImg.classList.add('spinning');
+    document.getElementById('scene-4').classList.add('revealed');
+  }, 300);
+}
+
+/* ═══════════════════════════════════════════════
+   DOT NAVIGATION
+   ═══════════════════════════════════════════════ */
+dots.forEach(dot => {
+  dot.addEventListener('click', () => {
+    const n = parseInt(dot.dataset.scene);
+    if (n > currentScene) goToScene(n);
+  });
+  dot.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dot.click(); }
+  });
+});
+
+/* ═══════════════════════════════════════════════
+   INTRO LOAD ANIMATION
+   ═══════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  const s1 = document.getElementById('scene-1');
+  s1.style.opacity    = '0';
+  s1.style.transform  = 'translateY(30px)';
+  s1.style.transition = 'opacity 1s 0.3s ease, transform 1s 0.3s ease';
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      s1.style.opacity   = '1';
+      s1.style.transform = 'translateY(0)';
+    });
+  });
+});
+</script>
+</body>
+</html>
