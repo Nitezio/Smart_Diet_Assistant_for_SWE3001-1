@@ -17,7 +17,7 @@ class RoleSelectionScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Spacer(flex: 1),
-              const Icon(FontAwesomeIcons.users, size: 60, color: Colors.green),
+              FaIcon(FontAwesomeIcons.users, size: 60, color: Colors.green),
               const SizedBox(height: 20),
               const Text(
                 "Welcome to\nSmart Diet Assistant",
@@ -109,7 +109,9 @@ class RoleSelectionScreen extends StatelessWidget {
           children: [
             CircleAvatar(
               backgroundColor: Colors.green,
-              child: FaIcon(icon, color: Colors.white, size: 20),
+              child: icon is FaIconData 
+                  ? FaIcon(icon, color: Colors.white, size: 20)
+                  : Icon(icon, color: Colors.white, size: 20),
             ),
             const SizedBox(width: 16),
             Expanded(

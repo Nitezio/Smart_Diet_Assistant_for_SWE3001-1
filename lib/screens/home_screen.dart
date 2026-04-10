@@ -146,7 +146,7 @@ class MealPlanTab extends StatelessWidget {
                       color: Colors.green.shade50,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(FontAwesomeIcons.carrot, size: 60, color: Colors.green),
+                    child: FaIcon(FontAwesomeIcons.carrot, size: 60, color: Colors.green),
                   ),
                   const SizedBox(height: 24),
                   const Text(
