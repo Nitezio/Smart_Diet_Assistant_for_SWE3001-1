@@ -64,8 +64,6 @@ class MealPlanTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = Provider.of<AppState>(context);
     final String todayDate = DateFormat('EEEE, d MMM y').format(DateTime.now());
-
-    // Check if we have data to decide layout
     final bool hasPlan = state.currentMealPlan != null;
 
     return Scaffold(
@@ -76,20 +74,13 @@ class MealPlanTab extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-                "Meal Plan",
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)
-            ),
-            Text(
-                todayDate,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: Colors.white70)
-            ),
+            const Text("Meal Plan", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            Text(todayDate, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: Colors.white70)),
           ],
         ),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
         actions: [
-          // 🟢 LOGIC: Only show "Change Menu" button in AppBar if a plan ALREADY exists.
           if (hasPlan && !state.isLoading)
             Padding(
               padding: const EdgeInsets.only(right: 16.0),
@@ -97,11 +88,7 @@ class MealPlanTab extends StatelessWidget {
                 height: 40,
                 child: FilledButton.icon(
                   onPressed: () => state.getDietPlan(),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.green,
-                    elevation: 2,
-                  ),
+                  style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.green, elevation: 2),
                   icon: const Icon(Icons.shuffle, size: 18),
                   label: const Text("Change Menu"),
                 ),
@@ -111,12 +98,11 @@ class MealPlanTab extends StatelessWidget {
       ),
       body: Builder(
         builder: (context) {
-          // STATE 1: LOADING
           if (state.isLoading) {
-            return Center(
+            return const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
+                children: [
                   CircularProgressIndicator(color: Colors.green),
                   SizedBox(height: 20),
                   Text("Chefs are preparing your menu...", style: TextStyle(color: Colors.grey, fontSize: 16)),
@@ -125,15 +111,13 @@ class MealPlanTab extends StatelessWidget {
             );
           }
 
-          // STATE 2: PLAN EXISTS (Show List)
           if (hasPlan) {
             return SingleChildScrollView(
               padding: const EdgeInsets.all(16),
-              child: _buildParsedDietList(state.currentMealPlan!, () => state.getDietPlan()),
+              child: _buildParsedDietList(state.currentMealPlan!, context),
             );
           }
 
-          // STATE 3: NO PLAN / FIRST TIME (Show Big Button)
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(32.0),
@@ -142,17 +126,11 @@ class MealPlanTab extends StatelessWidget {
                 children: [
                   Container(
                     padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      shape: BoxShape.circle,
-                    ),
-                    child: FaIcon(FontAwesomeIcons.carrot, size: 60, color: Colors.green),
+                    decoration: BoxDecoration(color: Colors.green.shade50, shape: BoxShape.circle),
+                    child: const FaIcon(FontAwesomeIcons.carrot, size: 60, color: Colors.green),
                   ),
                   const SizedBox(height: 24),
-                  const Text(
-                      "Ready to Eat Healthy?",
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)
-                  ),
+                  const Text("Ready to Eat Healthy?", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)),
                   const SizedBox(height: 12),
                   const Text(
                     "Tap below to generate a personalized Malaysian meal plan based on your health profile.",
@@ -160,7 +138,6 @@ class MealPlanTab extends StatelessWidget {
                     style: TextStyle(fontSize: 16, color: Colors.grey, height: 1.5),
                   ),
                   const SizedBox(height: 32),
-                  // 🟢 THE REQUESTED BIG BUTTON FOR FIRST TIME USE
                   SizedBox(
                     width: double.infinity,
                     height: 56,
@@ -185,7 +162,8 @@ class MealPlanTab extends StatelessWidget {
     );
   }
 
-  Widget _buildParsedDietList(String planText, VoidCallback onRetry) {
+  Widget _buildParsedDietList(String planText, BuildContext context) {
+    final state = Provider.of<AppState>(context, listen: false);
     if (planText.startsWith("Error")) {
       return Center(
         child: Padding(
@@ -200,7 +178,7 @@ class MealPlanTab extends StatelessWidget {
               Text(planText, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red, fontSize: 16)),
               const SizedBox(height: 24),
               ElevatedButton.icon(
-                onPressed: onRetry,
+                onPressed: () => state.getDietPlan(),
                 icon: const Icon(Icons.refresh),
                 label: const Text("Retry"),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
@@ -218,13 +196,13 @@ class MealPlanTab extends StatelessWidget {
       if (line.trim().isEmpty) continue;
 
       if (line.contains("Breakfast:")) {
-        cards.add(_buildCard("Breakfast", line.replaceAll("Breakfast:", ""), Colors.orange));
+        cards.add(_buildCard("Breakfast", line.replaceAll("Breakfast:", ""), Colors.orange, context));
       } else if (line.contains("Lunch:")) {
-        cards.add(_buildCard("Lunch", line.replaceAll("Lunch:", ""), Colors.green));
+        cards.add(_buildCard("Lunch", line.replaceAll("Lunch:", ""), Colors.green, context));
       } else if (line.contains("Dinner:")) {
-        cards.add(_buildCard("Dinner", line.replaceAll("Dinner:", ""), Colors.blue));
+        cards.add(_buildCard("Dinner", line.replaceAll("Dinner:", ""), Colors.blue, context));
       } else if (line.contains("Snack:")) {
-        cards.add(_buildCard("Snack", line.replaceAll("Snack:", ""), Colors.purple));
+        cards.add(_buildCard("Snack", line.replaceAll("Snack:", ""), Colors.purple, context));
       } else if (line.contains("Nutrients")) {
         cards.add(Card(
             color: Colors.teal.shade50,
@@ -241,14 +219,21 @@ class MealPlanTab extends StatelessWidget {
                 )
             )
         ));
-      } else if (line.contains("Reasoning")) {
-        // Reasoning hidden for cleaner UI, or can be added as a footnote
       }
     }
     return Column(children: cards);
   }
 
-  Widget _buildCard(String title, String content, Color color) {
+  Widget _buildCard(String title, String content, Color color, BuildContext context) {
+    final state = Provider.of<AppState>(context);
+    final isLogged = state.loggedMeals.contains(title);
+
+    int calories = 400; 
+    final calMatch = RegExp(r'(\d+)\s*kcal').firstMatch(content);
+    if (calMatch != null) {
+      calories = int.tryParse(calMatch.group(1)!) ?? 400;
+    }
+
     return Card(
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -256,23 +241,23 @@ class MealPlanTab extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: Border(left: BorderSide(color: color, width: 6))
+            border: Border(left: BorderSide(color: isLogged ? Colors.grey : color, width: 6))
         ),
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           leading: CircleAvatar(
-            backgroundColor: color.withOpacity(0.1),
-            child: Icon(Icons.restaurant, color: color),
+            backgroundColor: (isLogged ? Colors.grey : color).withOpacity(0.1),
+            child: Icon(isLogged ? Icons.done_all : Icons.restaurant, color: isLogged ? Colors.grey : color),
           ),
-          title: Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 18)),
+          title: Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: isLogged ? Colors.grey : color, fontSize: 18)),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 6.0),
-            child: Text(content.trim(), style: const TextStyle(fontSize: 16, color: Colors.black87)),
+            child: Text(content.trim(), style: TextStyle(fontSize: 16, color: isLogged ? Colors.grey : Colors.black87)),
           ),
           trailing: IconButton(
-            icon: const Icon(Icons.check_circle_outline, color: Colors.grey),
-            tooltip: "Log this meal",
-            onPressed: (){},
+            icon: Icon(isLogged ? Icons.check_circle : Icons.check_circle_outline, color: isLogged ? Colors.green : Colors.grey),
+            tooltip: isLogged ? "Logged" : "Log this meal",
+            onPressed: isLogged ? null : () => state.logMeal(title, calories),
           ),
         ),
       ),
@@ -285,35 +270,32 @@ class TrackerTab extends StatelessWidget {
   const TrackerTab({super.key});
   @override
   Widget build(BuildContext context) {
+    final state = Provider.of<AppState>(context);
+    final percentage = (state.consumedCalories / state.calorieGoal).clamp(0.0, 1.0);
+
     return Scaffold(
       appBar: AppBar(title: const Text("Nutritional Tracker")),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            FaIcon(FontAwesomeIcons.chartPie, size: 80, color: Colors.green),
+            const FaIcon(FontAwesomeIcons.chartPie, size: 80, color: Colors.green),
             const SizedBox(height: 20),
             const Text("Calories Today", style: TextStyle(fontSize: 18)),
-            const Text("1250 / 1800 kcal", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.green)),
+            Text("${state.consumedCalories} / ${state.calorieGoal} kcal", style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.green)),
             const SizedBox(height: 30),
             Container(
                 height: 20,
                 width: 300,
-                decoration: BoxDecoration(
-                    color: Colors.green.shade100,
-                    borderRadius: BorderRadius.circular(10)
-                ),
+                decoration: BoxDecoration(color: Colors.green.shade100, borderRadius: BorderRadius.circular(10)),
                 child: FractionallySizedBox(
                     alignment: Alignment.centerLeft,
-                    widthFactor: 0.7,
-                    child: Container(
-                      decoration: BoxDecoration(
-                          color: Colors.green,
-                          borderRadius: BorderRadius.circular(10)
-                      ),
-                    )
+                    widthFactor: percentage,
+                    child: Container(decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(10)))
                 )
             ),
+            const SizedBox(height: 10),
+            Text("${(percentage * 100).toInt()}% of daily goal", style: const TextStyle(color: Colors.grey)),
           ],
         ),
       ),
@@ -343,11 +325,7 @@ class ChatTab extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: TextField(
-                decoration: InputDecoration(
-                    hintText: "Type message...",
-                    suffixIcon: const Icon(Icons.send),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(30))
-                )
+                decoration: InputDecoration(hintText: "Type message...", suffixIcon: const Icon(Icons.send), border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)))
             ),
           )
         ],
@@ -361,10 +339,7 @@ class ChatTab extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 5),
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-            color: isMe ? Colors.green : Colors.grey[300],
-            borderRadius: BorderRadius.circular(15)
-        ),
+        decoration: BoxDecoration(color: isMe ? Colors.green : Colors.grey[300], borderRadius: BorderRadius.circular(15)),
         child: Text(text, style: TextStyle(color: isMe ? Colors.white : Colors.black)),
       ),
     );
@@ -376,7 +351,8 @@ class ProfileTab extends StatelessWidget {
   const ProfileTab({super.key});
   @override
   Widget build(BuildContext context) {
-    final user = Provider.of<AppState>(context).user;
+    final state = Provider.of<AppState>(context);
+    final user = state.user;
     return Scaffold(
       appBar: AppBar(title: const Text("My Profile")),
       body: user == null ? const Center(child: Text("No Profile Data")) : ListView(
@@ -395,7 +371,7 @@ class ProfileTab extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: OutlinedButton.icon(
               onPressed: () {
-                Provider.of<AppState>(context, listen: false).logout();
+                state.logout();
                 Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
               },
               icon: const Icon(Icons.logout, color: Colors.red),
