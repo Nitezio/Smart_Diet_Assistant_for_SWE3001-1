@@ -60,6 +60,32 @@ class _HomeScreenState extends State<HomeScreen> {
 class MealPlanTab extends StatelessWidget {
   const MealPlanTab({super.key});
 
+  // 1. Confirmation Dialog before changing
+  void _showChangeConfirmation(BuildContext context, AppState state) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Change Menu?"),
+        content: const Text("Are you sure you want to change current menu? This will replace your existing plan for today."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("No", style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showCuisinePicker(context, state);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+            child: const Text("Yes"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 2. Cuisine Picker
   void _showCuisinePicker(BuildContext context, AppState state) {
     showModalBottomSheet(
       context: context,
@@ -80,9 +106,9 @@ class MealPlanTab extends StatelessWidget {
               const SizedBox(height: 8),
               const Text("Select a style for today's meal plan:", style: TextStyle(color: Colors.grey)),
               const SizedBox(height: 20),
-              _cuisineOption(context, state, "Malay Malaysian", Icons.restaurant),
-              _cuisineOption(context, state, "Chinese Malaysian", Icons.ramen_dining),
-              _cuisineOption(context, state, "Indian Malaysian", Icons.kebab_dining),
+              _cuisineOption(context, state, "Malay", Icons.restaurant),
+              _cuisineOption(context, state, "Chinese", Icons.ramen_dining),
+              _cuisineOption(context, state, "Indian", Icons.kebab_dining),
               const Divider(),
               _cuisineOption(context, state, "Surprise me (Random)", Icons.auto_awesome, isSpecial: true),
             ],
@@ -130,7 +156,7 @@ class MealPlanTab extends StatelessWidget {
               child: SizedBox(
                 height: 40,
                 child: FilledButton.icon(
-                  onPressed: () => _showCuisinePicker(context, state),
+                  onPressed: () => _showChangeConfirmation(context, state), // 🟢 Updated to show confirmation first
                   style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.green, elevation: 2),
                   icon: const Icon(Icons.shuffle, size: 18),
                   label: const Text("Change Menu"),
@@ -193,7 +219,7 @@ class MealPlanTab extends StatelessWidget {
                         elevation: 4,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
-                      onPressed: () => _showCuisinePicker(context, state),
+                      onPressed: () => _showCuisinePicker(context, state), // 🟢 Direct to picker for first time
                     ),
                   ),
                 ],
