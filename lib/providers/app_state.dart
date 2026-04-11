@@ -3,47 +3,39 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../models/user_profile.dart';
+import '../models/meal_plan.dart';
 import '../services/gemini_service.dart';
+import '../services/database_helper.dart';
 
-// Simple Model for Food Items
+// Reposting FoodItem and MealHistoryItem models here for completeness if needed elsewhere, 
+// though they are also handled by DatabaseHelper.
 class FoodItem {
   String id;
   String name;
   String details;
   bool isWarning;
-
   FoodItem({required this.id, required this.name, required this.details, required this.isWarning});
-
-  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'details': details, 'isWarning': isWarning};
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'details': details, 'isWarning': isWarning ? 1 : 0};
   factory FoodItem.fromJson(Map<String, dynamic> json) => FoodItem(
     id: json['id'],
     name: json['name'],
     details: json['details'],
-    isWarning: json['isWarning'],
+    isWarning: json['isWarning'] == 1 || json['isWarning'] == true,
   );
 }
 
-// 🟢 NEW: Model for Meal History
 class MealHistoryItem {
   final String mealType;
   final String dishName;
   final int calories;
   final DateTime timestamp;
-
-  MealHistoryItem({
-    required this.mealType,
-    required this.dishName,
-    required this.calories,
-    required this.timestamp,
-  });
-
+  MealHistoryItem({required this.mealType, required this.dishName, required this.calories, required this.timestamp});
   Map<String, dynamic> toJson() => {
     'mealType': mealType,
     'dishName': dishName,
     'calories': calories,
     'timestamp': timestamp.toIso8601String(),
   };
-
   factory MealHistoryItem.fromJson(Map<String, dynamic> json) => MealHistoryItem(
     mealType: json['mealType'],
     dishName: json['dishName'],
@@ -54,91 +46,92 @@ class MealHistoryItem {
 
 class AppState with ChangeNotifier {
   final GeminiService _aiService = GeminiService();
+  final DatabaseHelper _db = DatabaseHelper.instance;
 
   UserProfile? _user;
-  String? _currentMealPlan;
+  MealPlan? _currentMealPlan;
   bool _isLoading = false;
   String _selectedRole = 'Elderly';
   bool _isProfileLoaded = false;
 
-  // --- PERSISTENCE & LOGGING DATA ---
+  // --- STREAMING SUPPORT ---
+  String _streamingJSON = "";
+
+  // --- TRACKING DATA ---
   int _consumedCalories = 0;
   final int _calorieGoal = 1800;
-  List<String> _loggedMeals = []; // IDs of meals logged today (e.g., "Breakfast")
-  List<MealHistoryItem> _history = []; // 🟢 Global history list
-
-  // --- ADMIN DATA (FOOD DATABASE) ---
-  List<FoodItem> _foodDatabase = [
-    FoodItem(id: '1', name: "Nasi Lemak", details: "High Fat, High Sodium", isWarning: true),
-    FoodItem(id: '2', name: "Teh Tarik", details: "High Sugar (Avoid for Diabetics)", isWarning: true),
-    FoodItem(id: '3', name: "Bubur Ayam", details: "Safe: Easy Chew, Low Fat", isWarning: false),
-    FoodItem(id: '4', name: "Steamed Fish", details: "Safe: High Protein, Healthy Fats", isWarning: false),
-    FoodItem(id: '5', name: "Roti Canai", details: "High Fat, Low Nutritional Value", isWarning: true),
-  ];
+  List<String> _loggedMeals = []; 
+  List<MealHistoryItem> _history = []; 
+  List<FoodItem> _foodDatabase = [];
 
   AppState() {
-    _loadState();
+    _init();
   }
 
   // Getters
   UserProfile? get user => _user;
-  String? get currentMealPlan => _currentMealPlan;
+  MealPlan? get currentMealPlan => _currentMealPlan;
   bool get isLoading => _isLoading;
   String get selectedRole => _selectedRole;
   List<FoodItem> get foodDatabase => _foodDatabase;
   bool get isProfileLoaded => _isProfileLoaded;
   int get consumedCalories => _consumedCalories;
   int get calorieGoal => _calorieGoal;
+  List<MealHistoryItem> get history => _history;
   List<String> get loggedMeals => _loggedMeals;
-  List<MealHistoryItem> get history => _history; // 🟢 Getter for history
 
-  Future<void> _loadState() async {
-    final prefs = await SharedPreferences.getInstance();
-    
-    // 1. Load Profile
-    final profileData = prefs.getString('user_profile');
-    if (profileData != null) {
-      try {
-        _user = UserProfile.fromJson(json.decode(profileData));
-        _selectedRole = _user!.role;
-      } catch (e) {
-        debugPrint("Error parsing stored profile: $e");
-      }
-    }
-
-    // 2. Load Meal Plan (if date matches)
-    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    final savedDate = prefs.getString('meal_plan_date');
-    if (savedDate == today) {
-      _currentMealPlan = prefs.getString('current_meal_plan');
-      _consumedCalories = prefs.getInt('consumed_calories') ?? 0;
-      _loggedMeals = prefs.getStringList('logged_meals') ?? [];
-    }
-
-    // 3. Load Global History
-    final historyData = prefs.getString('meal_history');
-    if (historyData != null) {
-      final List decoded = json.decode(historyData);
-      _history = decoded.map((e) => MealHistoryItem.fromJson(e)).toList();
-    }
-
-    // 4. Load Food DB
-    final dbData = prefs.getString('food_database');
-    if (dbData != null) {
-      final List decoded = json.decode(dbData);
-      _foodDatabase = decoded.map((e) => FoodItem.fromJson(e)).toList();
-    }
-
+  Future<void> _init() async {
+    await _loadProfile();
+    await _syncFromDatabase();
+    await _loadDailyState();
     _isProfileLoaded = true;
     notifyListeners();
   }
 
-  // --- LOGIC METHODS ---
-
-  void setRole(String role) {
-    _selectedRole = role;
+  Future<void> _syncFromDatabase() async {
+    _foodDatabase = await _db.getAllFood();
+    if (_foodDatabase.isEmpty) {
+      // Seed default data if empty
+      _foodDatabase = [
+        FoodItem(id: '1', name: "Nasi Lemak", details: "High Fat, High Sodium", isWarning: true),
+        FoodItem(id: '2', name: "Teh Tarik", details: "High Sugar (Avoid for Diabetics)", isWarning: true),
+        FoodItem(id: '3', name: "Bubur Ayam", details: "Safe: Easy Chew, Low Fat", isWarning: false),
+        FoodItem(id: '4', name: "Steamed Fish", details: "Safe: High Protein, Healthy Fats", isWarning: false),
+        FoodItem(id: '5', name: "Roti Canai", details: "High Fat, Low Nutritional Value", isWarning: true),
+      ];
+      for (var item in _foodDatabase) { await _db.insertFood(item); }
+    }
+    _history = await _db.getAllHistory();
     notifyListeners();
   }
+
+  Future<void> _loadProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    final profileData = prefs.getString('user_profile');
+    if (profileData != null) {
+      _user = UserProfile.fromJson(json.decode(profileData));
+      _selectedRole = _user!.role;
+    }
+  }
+
+  Future<void> _loadDailyState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final savedDate = prefs.getString('meal_plan_date');
+    
+    if (savedDate == today) {
+      final planData = prefs.getString('current_meal_plan_json');
+      if (planData != null) {
+        _currentMealPlan = MealPlan.fromJson(json.decode(planData));
+      }
+      _consumedCalories = prefs.getInt('consumed_calories') ?? 0;
+      _loggedMeals = prefs.getStringList('logged_meals') ?? [];
+    }
+  }
+
+  // --- ACTIONS ---
+
+  void setRole(String role) { _selectedRole = role; notifyListeners(); }
 
   void setUser(UserProfile profile) {
     _user = profile;
@@ -154,110 +147,130 @@ class AppState with ChangeNotifier {
   Future<void> logout() async {
     _user = null;
     _currentMealPlan = null;
-    _consumedCalories = 0;
-    _loggedMeals = [];
-    _history = [];
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear(); // Clear all on logout
+    await prefs.clear();
+    await _db.clearAllData();
+    _history = [];
     notifyListeners();
   }
 
   Future<void> getDietPlan({String? cuisineType, List<String>? mealsToChange}) async {
     if (_user == null) return;
+
+    // 1. Check Internet for Fallback
+    bool online = await _aiService.hasInternet();
+    if (!online) {
+      if (_currentMealPlan != null) {
+        debugPrint("🟠 Offline: Using previously generated plan as fallback.");
+        return; // Already have a plan loaded
+      } else {
+        // Handle absolute no-plan + no-internet situation
+        return; 
+      }
+    }
+
     _isLoading = true;
+    _streamingJSON = "";
     notifyListeners();
-    
-    final newPlan = await _aiService.generateMealPlan(
+
+    final currentPlanStr = _currentMealPlan != null ? json.encode(_currentMealPlan!.toJson()) : null;
+
+    final stream = _aiService.generateMealPlanStream(
       _user!, 
       _foodDatabase, 
       cuisineType: cuisineType,
       mealsToChange: mealsToChange,
-      currentPlan: _currentMealPlan,
+      currentPlan: currentPlanStr
     );
 
-    if (newPlan.startsWith("Error")) {
-      _currentMealPlan = newPlan;
-    } else {
-      _currentMealPlan = newPlan;
+    await for (final chunk in stream) {
+      if (chunk.startsWith("ERROR")) {
+        debugPrint("🔴 AI Stream Error: $chunk");
+        break;
+      }
+      _streamingJSON += chunk;
+      // We don't parse until complete for stability with JSON
+    }
+
+    try {
+      final decoded = json.decode(_streamingJSON);
+      _currentMealPlan = MealPlan.fromJson(decoded);
+      
+      // LOGIC: Reset/Sync state
       if (mealsToChange == null || mealsToChange.length >= 4) {
         _consumedCalories = 0;
         _loggedMeals = [];
       } else {
-        _consumedCalories = 0; 
         _loggedMeals.removeWhere((m) => mealsToChange.contains(m));
+        _recalculateCalories();
       }
 
-      final prefs = await SharedPreferences.getInstance();
-      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      await prefs.setString('current_meal_plan', _currentMealPlan!);
-      await prefs.setString('meal_plan_date', today);
-      await prefs.setInt('consumed_calories', _consumedCalories);
-      await prefs.setStringList('logged_meals', _loggedMeals);
+      _persistDailyState();
+    } catch (e) {
+      debugPrint("🔴 JSON Parse Error: $e. Raw: $_streamingJSON");
     }
-    
+
     _isLoading = false;
     notifyListeners();
   }
 
-  // 🟢 UPDATED: Log meal with history tracking
+  void _recalculateCalories() {
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    _consumedCalories = _history
+        .where((item) => DateFormat('yyyy-MM-dd').format(item.timestamp) == today)
+        .fold(0, (sum, item) => sum + item.calories);
+  }
+
+  Future<void> _persistDailyState() async {
+    if (_currentMealPlan == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    await prefs.setString('current_meal_plan_json', json.encode(_currentMealPlan!.toJson()));
+    await prefs.setString('meal_plan_date', today);
+    await prefs.setInt('consumed_calories', _consumedCalories);
+    await prefs.setStringList('logged_meals', _loggedMeals);
+  }
+
   void logMeal(String mealType, String dishName, int calories) async {
     if (_loggedMeals.contains(mealType)) return;
 
     _consumedCalories += calories;
     _loggedMeals.add(mealType);
     
-    // Add to History
-    _history.insert(0, MealHistoryItem(
+    final item = MealHistoryItem(
       mealType: mealType,
       dishName: dishName,
       calories: calories,
       timestamp: DateTime.now(),
-    ));
-    
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('consumed_calories', _consumedCalories);
-    await prefs.setStringList('logged_meals', _loggedMeals);
-    await prefs.setString('meal_history', json.encode(_history.map((e) => e.toJson()).toList()));
-    
-    notifyListeners();
-  }
-
-  // --- CRUD OPERATIONS FOR FOOD DB ---
-  void addFood(String name, String details, bool isWarning) {
-    final newItem = FoodItem(
-        id: DateTime.now().toString(),
-        name: name,
-        details: details,
-        isWarning: isWarning
     );
-    _foodDatabase.add(newItem);
-    _saveFoodDatabase();
+    _history.insert(0, item);
+    await _db.insertHistory(item);
+    
+    _persistDailyState();
     notifyListeners();
   }
 
-  void updateFood(String id, String newName, String newDetails, bool newIsWarning) {
+  // --- FOOD DB CRUD ---
+  void addFood(String name, String details, bool isWarning) async {
+    final item = FoodItem(id: DateTime.now().toString(), name: name, details: details, isWarning: isWarning);
+    _foodDatabase.add(item);
+    await _db.insertFood(item);
+    notifyListeners();
+  }
+
+  void updateFood(String id, String newName, String newDetails, bool newIsWarning) async {
     final index = _foodDatabase.indexWhere((item) => item.id == id);
     if (index != -1) {
-      _foodDatabase[index] = FoodItem(
-          id: id,
-          name: newName,
-          details: newDetails,
-          isWarning: newIsWarning
-      );
-      _saveFoodDatabase();
+      final item = FoodItem(id: id, name: newName, details: newDetails, isWarning: newIsWarning);
+      _foodDatabase[index] = item;
+      await _db.updateFood(item);
       notifyListeners();
     }
   }
 
-  void deleteFood(String id) {
+  void deleteFood(String id) async {
     _foodDatabase.removeWhere((item) => item.id == id);
-    _saveFoodDatabase();
+    await _db.deleteFood(id);
     notifyListeners();
-  }
-
-  Future<void> _saveFoodDatabase() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String encoded = json.encode(_foodDatabase.map((e) => e.toJson()).toList());
-    await prefs.setString('food_database', encoded);
   }
 }

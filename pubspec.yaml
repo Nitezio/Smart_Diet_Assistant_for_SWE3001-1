@@ -29,6 +29,9 @@ dependencies:
   # Default Flutter icons
   cupertino_icons: ^1.0.8
   flutter_dotenv: ^6.0.0
+  sqflite: ^2.4.2
+  path: ^1.9.1
+  connectivity_plus: ^7.1.1
 
 dev_dependencies:
   flutter_test:
