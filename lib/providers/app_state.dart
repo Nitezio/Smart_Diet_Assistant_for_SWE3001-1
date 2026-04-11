@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/user_profile.dart';
 import '../models/meal_plan.dart';
 import '../services/gemini_service.dart';
@@ -45,6 +46,7 @@ class MealHistoryItem {
 class AppState with ChangeNotifier {
   final GeminiService _aiService = GeminiService();
   final DatabaseHelper _db = DatabaseHelper.instance;
+  final ImagePicker _picker = ImagePicker();
 
   UserProfile? _user;
   MealPlan? _currentMealPlan;
@@ -59,7 +61,7 @@ class AppState with ChangeNotifier {
   List<MealHistoryItem> _history = []; 
   List<FoodItem> _foodDatabase = [];
   
-  // --- 🟢 NEW: CHAT DATA ---
+  // --- CHAT DATA ---
   List<ChatMessage> _chatHistory = [];
   bool _isTyping = false;
 
@@ -162,49 +164,35 @@ class AppState with ChangeNotifier {
     notifyListeners();
   }
 
-  // --- 🟢 CHAT LOGIC ---
+  // --- CHAT LOGIC ---
   Future<void> sendChatMessage(String message) async {
     if (message.trim().isEmpty || _user == null) return;
-
-    // 1. Add User Message
     final userMsg = ChatMessage(text: message, isUser: true, timestamp: DateTime.now());
     _chatHistory.add(userMsg);
     _isTyping = true;
     notifyListeners();
-
-    // 2. Get AI Response
     final aiResponse = await _aiService.getChatResponse(_user!, _chatHistory, message);
-    
-    // 3. Add AI Message
     final aiMsg = ChatMessage(text: aiResponse, isUser: false, timestamp: DateTime.now());
     _chatHistory.add(aiMsg);
     _isTyping = false;
-    
-    // 4. Persist
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('chat_history', json.encode(_chatHistory.map((e) => e.toJson()).toList()));
-    
     notifyListeners();
   }
 
   Future<void> getDietPlan({String? cuisineType, List<String>? mealsToChange}) async {
     if (_user == null) return;
-
     bool online = await _aiService.hasInternet();
     if (!online && _currentMealPlan != null) return;
-
     _isLoading = true;
     notifyListeners();
-
     final currentPlanStr = _currentMealPlan != null ? json.encode(_currentMealPlan!.toJson()) : null;
     final stream = _aiService.generateMealPlanStream(_user!, _foodDatabase, cuisineType: cuisineType, mealsToChange: mealsToChange, currentPlan: currentPlanStr);
-
     String buffer = "";
     await for (final chunk in stream) {
       if (chunk.startsWith("ERROR")) break;
       buffer += chunk;
     }
-
     try {
       _currentMealPlan = MealPlan.fromJson(json.decode(buffer));
       if (mealsToChange == null || mealsToChange.length >= 4) {
@@ -216,7 +204,6 @@ class AppState with ChangeNotifier {
       }
       _persistDailyState();
     } catch (e) { debugPrint("JSON Error: $e"); }
-
     _isLoading = false;
     notifyListeners();
   }
@@ -244,6 +231,35 @@ class AppState with ChangeNotifier {
     _history.insert(0, item);
     await _db.insertHistory(item);
     _persistDailyState();
+    notifyListeners();
+  }
+
+  // 🟢 NEW: PLATE SCANNER LOGIC
+  Future<void> scanPlate(BuildContext context) async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.camera);
+    if (image == null) return;
+
+    _isLoading = true;
+    notifyListeners();
+
+    final bytes = await image.readAsBytes();
+    final result = await _aiService.analyzeMealImage(bytes, 'image/jpeg');
+
+    if (result != null) {
+      final dishName = result['dishName'] ?? 'Unknown Dish';
+      final calories = result['calories'] ?? 400;
+      
+      // Auto-log as a "Scanned Meal"
+      logMeal("Scanned Meal", dishName, calories);
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("AI identified: $dishName (~$calories kcal)")),
+        );
+      }
+    }
+
+    _isLoading = false;
     notifyListeners();
   }
 

@@ -53,6 +53,16 @@ class _HomeScreenState extends State<HomeScreen> {
         type: BottomNavigationBarType.fixed,
         onTap: _onItemTapped,
       ),
+      // 🟢 FAB for AI VISION (Only on Tracker and Meals tab)
+      floatingActionButton: (_selectedIndex == 0 || _selectedIndex == 1)
+          ? FloatingActionButton.extended(
+              onPressed: () => state.scanPlate(context),
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.camera_alt),
+              label: const Text("Scan Plate"),
+            )
+          : null,
     );
   }
 }
@@ -173,7 +183,6 @@ class MealPlanTab extends StatelessWidget {
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
         actions: [
-          // 🟢 FIXED: "Change Menu" button with Text and Icon
           if (hasPlan && !state.isLoading)
             Padding(
               padding: const EdgeInsets.only(right: 12.0),
@@ -196,7 +205,7 @@ class MealPlanTab extends StatelessWidget {
             return const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
               CircularProgressIndicator(color: Colors.green),
               SizedBox(height: 20),
-              Text("Chefs are preparing your menu...", style: TextStyle(color: Colors.grey)),
+              Text("AI is processing...", style: TextStyle(color: Colors.grey)),
             ]));
           }
 
@@ -217,7 +226,7 @@ class MealPlanTab extends StatelessWidget {
                   const SizedBox(height: 24),
                   const Text("Ready to Eat Healthy?", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
-                  const Text("Tap below to generate your personalized meal plan.", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                  const Text("Tap 'Scan Plate' below or generate a manual plan.", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
                   const SizedBox(height: 32),
                   SizedBox(
                     width: double.infinity,
@@ -266,6 +275,7 @@ class MealPlanTab extends StatelessWidget {
             ),
           ),
         ),
+        const SizedBox(height: 80), // Space for FAB
       ],
     );
   }
@@ -358,20 +368,24 @@ class TrackerTab extends StatelessWidget {
             itemCount: state.history.length,
             itemBuilder: (context, i) {
               final item = state.history[i];
-              return ListTile(
-                title: Text(item.dishName),
-                subtitle: Text("${item.mealType} • ${DateFormat('h:mm a').format(item.timestamp)}"),
-                trailing: Text("+${item.calories} kcal", style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: const Icon(Icons.history, color: Colors.green),
+                  title: Text(item.dishName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text("${item.mealType} • ${DateFormat('h:mm a').format(item.timestamp)}"),
+                  trailing: Text("+${item.calories} kcal", style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                ),
               );
             },
           ),
+          const SizedBox(height: 80), // Space for FAB
         ]),
       ),
     );
   }
 }
 
-// --- 🟢 UPDATED: FUNCTIONAL CHAT TAB ---
 class ChatTab extends StatefulWidget {
   const ChatTab({super.key});
 
@@ -388,7 +402,9 @@ class _ChatTabState extends State<ChatTab> {
     final msg = _msgCtrl.text;
     _msgCtrl.clear();
     await state.sendChatMessage(msg);
-    _scrollCtrl.animateTo(_scrollCtrl.position.maxScrollExtent, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+    if (_scrollCtrl.hasClients) {
+      _scrollCtrl.animateTo(_scrollCtrl.position.maxScrollExtent, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+    }
   }
 
   @override

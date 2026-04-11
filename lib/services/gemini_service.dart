@@ -1,4 +1,7 @@
 import 'dart:math';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -83,9 +86,8 @@ class GeminiService {
     }
   }
 
-  /// 🟢 NEW: Handles Chat with AI Nutritionist
+  /// Handles Chat with AI Nutritionist
   Future<String> getChatResponse(UserProfile profile, List<ChatMessage> history, String userMessage) async {
-    // We use a different generation config for chat (text, not JSON)
     final chatModel = GenerativeModel(
       model: 'gemini-2.5-flash', 
       apiKey: dotenv.env['GEMINI_API_KEY'] ?? "",
@@ -115,5 +117,36 @@ class GeminiService {
     } catch (e) {
       return "Error connecting to nutritionist: $e";
     }
+  }
+
+  /// 🟢 AI VISION - Analyze meal image
+  Future<Map<String, dynamic>?> analyzeMealImage(Uint8List imageBytes, String mimeType) async {
+    final prompt = """
+    Act as an AI nutritionist specialized in Malaysian cuisine. 
+    Analyze this photo of a meal. Identify the main dish and estimate the calories.
+    
+    OUTPUT: Provide a JSON object exactly matching this schema:
+    {
+      "dishName": "string (name of the dish)",
+      "calories": int (estimated calories),
+      "ingredients": "string (comma separated list of visible ingredients)"
+    }
+    """;
+
+    try {
+      final response = await _model.generateContent([
+        Content.multi([
+          TextPart(prompt),
+          DataPart(mimeType, imageBytes),
+        ])
+      ]);
+
+      if (response.text != null) {
+        return json.decode(response.text!);
+      }
+    } catch (e) {
+      debugPrint("🔴 Vision Error: $e");
+    }
+    return null;
   }
 }
