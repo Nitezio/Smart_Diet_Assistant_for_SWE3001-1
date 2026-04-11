@@ -4,11 +4,12 @@
 Develop the Smart Diet Assistant, a Flutter-based mobile health platform for elderly Malaysians that uses Google Gemini AI for culturally tailored meal planning.
 
 ## Active Phase
-Phase 4: Robust Partial Menu Control
-1. **Robust Partial Regeneration**: Implemented forced merging logic in `GeminiService`. AI is now strictly instructed to COPY unchanged lines and REGENERATE only target meals.
-2. **State Consistency**: `AppState` now preserves logging status for unchanged meals during partial updates.
-3. **UX Refinement**: Verified swapped confirmation buttons (Yes/Left/Green, No/Right/Red).
-4. **Logic Accuracy**: Separated AI prompt strategies for "Fresh Generation" vs "Forced Merging" to ensure 100% reliability.
+Phase 5: Tracking Persistence & Validation Logic
+1. **Meal History Tracking**: Implemented `MealHistoryItem` model and global history list in `AppState`. Logged meals now store the exact date and time.
+2. **Time-Based Validation**: Added programmed logic to check if the meal type (e.g., Dinner) matches the current time of day (e.g., Breakfast).
+3. **Mismatch Alerts**: implemented a confirmation dialog for timing mismatches (e.g., "Did you have Dinner for Breakfast?").
+4. **History UI**: Overhauled the Tracker tab to include a scrollable "Recent History" section with detailed timestamps.
+5. **Full State Persistence**: Updated `SharedPreferences` to save and restore the entire history and daily logging status.
 
 ## Blockers
 None.

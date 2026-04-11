@@ -23,6 +23,35 @@ class FoodItem {
   );
 }
 
+// 🟢 NEW: Model for Meal History
+class MealHistoryItem {
+  final String mealType;
+  final String dishName;
+  final int calories;
+  final DateTime timestamp;
+
+  MealHistoryItem({
+    required this.mealType,
+    required this.dishName,
+    required this.calories,
+    required this.timestamp,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'mealType': mealType,
+    'dishName': dishName,
+    'calories': calories,
+    'timestamp': timestamp.toIso8601String(),
+  };
+
+  factory MealHistoryItem.fromJson(Map<String, dynamic> json) => MealHistoryItem(
+    mealType: json['mealType'],
+    dishName: json['dishName'],
+    calories: json['calories'],
+    timestamp: DateTime.parse(json['timestamp']),
+  );
+}
+
 class AppState with ChangeNotifier {
   final GeminiService _aiService = GeminiService();
 
@@ -35,7 +64,8 @@ class AppState with ChangeNotifier {
   // --- PERSISTENCE & LOGGING DATA ---
   int _consumedCalories = 0;
   final int _calorieGoal = 1800;
-  List<String> _loggedMeals = []; // IDs or names of meals logged today (e.g., "Breakfast")
+  List<String> _loggedMeals = []; // IDs of meals logged today (e.g., "Breakfast")
+  List<MealHistoryItem> _history = []; // 🟢 Global history list
 
   // --- ADMIN DATA (FOOD DATABASE) ---
   List<FoodItem> _foodDatabase = [
@@ -60,6 +90,7 @@ class AppState with ChangeNotifier {
   int get consumedCalories => _consumedCalories;
   int get calorieGoal => _calorieGoal;
   List<String> get loggedMeals => _loggedMeals;
+  List<MealHistoryItem> get history => _history; // 🟢 Getter for history
 
   Future<void> _loadState() async {
     final prefs = await SharedPreferences.getInstance();
@@ -84,7 +115,14 @@ class AppState with ChangeNotifier {
       _loggedMeals = prefs.getStringList('logged_meals') ?? [];
     }
 
-    // 3. Load Food DB (Optional: in case admin edits persisted)
+    // 3. Load Global History
+    final historyData = prefs.getString('meal_history');
+    if (historyData != null) {
+      final List decoded = json.decode(historyData);
+      _history = decoded.map((e) => MealHistoryItem.fromJson(e)).toList();
+    }
+
+    // 4. Load Food DB
     final dbData = prefs.getString('food_database');
     if (dbData != null) {
       final List decoded = json.decode(dbData);
@@ -118,12 +156,9 @@ class AppState with ChangeNotifier {
     _currentMealPlan = null;
     _consumedCalories = 0;
     _loggedMeals = [];
+    _history = [];
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('user_profile');
-    await prefs.remove('current_meal_plan');
-    await prefs.remove('meal_plan_date');
-    await prefs.remove('consumed_calories');
-    await prefs.remove('logged_meals');
+    await prefs.clear(); // Clear all on logout
     notifyListeners();
   }
 
@@ -132,7 +167,6 @@ class AppState with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     
-    // AI Context Sync: Passing Food Database, Cuisine Type, and specific meals to AI
     final newPlan = await _aiService.generateMealPlan(
       _user!, 
       _foodDatabase, 
@@ -145,21 +179,14 @@ class AppState with ChangeNotifier {
       _currentMealPlan = newPlan;
     } else {
       _currentMealPlan = newPlan;
-      
-      // LOGIC: Reset calorie/logging state
       if (mealsToChange == null || mealsToChange.length >= 4) {
-        // Full Reset
         _consumedCalories = 0;
         _loggedMeals = [];
       } else {
-        // Partial Reset: Remove logging status ONLY for the regenerated meals
-        // Note: Calories are tricky to subtract precisely without a structured DB, 
-        // so we reset them to 0 to be safe and let user re-log current state.
         _consumedCalories = 0; 
         _loggedMeals.removeWhere((m) => mealsToChange.contains(m));
       }
 
-      // Persist session
       final prefs = await SharedPreferences.getInstance();
       final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
       await prefs.setString('current_meal_plan', _currentMealPlan!);
@@ -172,15 +199,25 @@ class AppState with ChangeNotifier {
     notifyListeners();
   }
 
-  void logMeal(String mealType, int calories) async {
-    if (_loggedMeals.contains(mealType)) return; // Prevent double logging
+  // 🟢 UPDATED: Log meal with history tracking
+  void logMeal(String mealType, String dishName, int calories) async {
+    if (_loggedMeals.contains(mealType)) return;
 
     _consumedCalories += calories;
     _loggedMeals.add(mealType);
     
+    // Add to History
+    _history.insert(0, MealHistoryItem(
+      mealType: mealType,
+      dishName: dishName,
+      calories: calories,
+      timestamp: DateTime.now(),
+    ));
+    
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('consumed_calories', _consumedCalories);
     await prefs.setStringList('logged_meals', _loggedMeals);
+    await prefs.setString('meal_history', json.encode(_history.map((e) => e.toJson()).toList()));
     
     notifyListeners();
   }

@@ -60,7 +60,48 @@ class _HomeScreenState extends State<HomeScreen> {
 class MealPlanTab extends StatelessWidget {
   const MealPlanTab({super.key});
 
-  // 1. Confirmation Dialog (Swapped Buttons & Colors)
+  // 🔴 TIME LOGIC: Get current logical meal period
+  String _getCurrentMealPeriod() {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 11) return "Breakfast";
+    if (hour >= 11 && hour < 16) return "Lunch";
+    if (hour >= 16 && hour < 18) return "Snack";
+    if (hour >= 18 && hour < 23) return "Dinner";
+    return "Late Snack";
+  }
+
+  void _handleLogAttempt(BuildContext context, AppState state, String mealType, String dishName, int calories) {
+    final currentPeriod = _getCurrentMealPeriod();
+    
+    if (mealType != currentPeriod) {
+      // 🟢 PROGRAMMED LOGIC: Ask for confirmation if timing doesn't match
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text("Timing Mismatch"),
+          content: Text("Did you have $mealType for $currentPeriod as the timing do not match?"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("No", style: TextStyle(color: Colors.red)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                state.logMeal(mealType, dishName, calories);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              child: const Text("Yes, I ate this"),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Normal logging
+      state.logMeal(mealType, dishName, calories);
+    }
+  }
+
   void _showChangeConfirmation(BuildContext context, AppState state) {
     showDialog(
       context: context,
@@ -68,7 +109,6 @@ class MealPlanTab extends StatelessWidget {
         title: const Text("Change Menu?"),
         content: const Text("Are you sure you want to change current menu? This will replace your selected meals."),
         actions: [
-          // 🟢 Left: Yes (Green)
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
@@ -77,7 +117,6 @@ class MealPlanTab extends StatelessWidget {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
             child: const Text("Yes"),
           ),
-          // 🔴 Right: No (Red)
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -88,7 +127,6 @@ class MealPlanTab extends StatelessWidget {
     );
   }
 
-  // 2. Meal Selection Dialog (Partial Change)
   void _showMealSelectionDialog(BuildContext context, AppState state) {
     showDialog(
       context: context,
@@ -103,13 +141,10 @@ class MealPlanTab extends StatelessWidget {
     );
   }
 
-  // 3. Cuisine Picker
   void _showCuisinePicker(BuildContext context, AppState state, List<String> mealsToChange) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return Container(
           padding: const EdgeInsets.all(24),
@@ -117,10 +152,7 @@ class MealPlanTab extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "Choose Your Cuisine",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
+              const Text("Choose Your Cuisine", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               const Text("Select a style for the regeneration:", style: TextStyle(color: Colors.grey)),
               const SizedBox(height: 20),
@@ -321,6 +353,9 @@ class MealPlanTab extends StatelessWidget {
       calories = int.tryParse(calMatch.group(1)!) ?? 400;
     }
 
+    // Extract dish name
+    String dishName = content.split('-').first.trim();
+
     return Card(
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -344,7 +379,7 @@ class MealPlanTab extends StatelessWidget {
           trailing: IconButton(
             icon: Icon(isLogged ? Icons.check_circle : Icons.check_circle_outline, color: isLogged ? Colors.green : Colors.grey),
             tooltip: isLogged ? "Logged" : "Log this meal",
-            onPressed: isLogged ? null : () => state.logMeal(title, calories),
+            onPressed: isLogged ? null : () => _handleLogAttempt(context, state, title, dishName, calories),
           ),
         ),
       ),
@@ -434,19 +469,20 @@ class TrackerTab extends StatelessWidget {
     final percentage = (state.consumedCalories / state.calorieGoal).clamp(0.0, 1.0);
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Nutritional Tracker")),
-      body: Center(
+      appBar: AppBar(title: const Text("Nutritional Tracker"), backgroundColor: Colors.green, foregroundColor: Colors.white),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const FaIcon(FontAwesomeIcons.chartPie, size: 80, color: Colors.green),
-            const SizedBox(height: 20),
-            const Text("Calories Today", style: TextStyle(fontSize: 18)),
+            const FaIcon(FontAwesomeIcons.chartPie, size: 60, color: Colors.green),
+            const SizedBox(height: 16),
+            const Text("Calories Today", style: TextStyle(fontSize: 18, color: Colors.grey)),
             Text("${state.consumedCalories} / ${state.calorieGoal} kcal", style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.green)),
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
             Container(
-                height: 20,
-                width: 300,
+                height: 15,
+                width: double.infinity,
                 decoration: BoxDecoration(color: Colors.green.shade100, borderRadius: BorderRadius.circular(10)),
                 child: FractionallySizedBox(
                     alignment: Alignment.centerLeft,
@@ -454,8 +490,45 @@ class TrackerTab extends StatelessWidget {
                     child: Container(decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(10)))
                 )
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Text("${(percentage * 100).toInt()}% of daily goal", style: const TextStyle(color: Colors.grey)),
+            
+            const SizedBox(height: 40),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text("Recent History", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 16),
+            
+            if (state.history.isEmpty)
+              const Padding(
+                padding: EdgeInsets.only(top: 20.0),
+                child: Text("No meals logged yet today.", style: TextStyle(color: Colors.grey)),
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: state.history.length,
+                itemBuilder: (context, index) {
+                  final item = state.history[index];
+                  final timeStr = DateFormat('h:mm a').format(item.timestamp);
+                  final dateStr = DateFormat('d MMM').format(item.timestamp);
+                  
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.green.shade50,
+                        child: Text(item.mealType[0], style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                      ),
+                      title: Text(item.dishName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text("${item.mealType} • $dateStr, $timeStr"),
+                      trailing: Text("+${item.calories} kcal", style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                    ),
+                  );
+                },
+              ),
           ],
         ),
       ),
