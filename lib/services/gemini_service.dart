@@ -26,7 +26,11 @@ class GeminiService {
   }
 
   /// Generates a meal plan based on user profile and local food database constraints.
-  Future<String> generateMealPlan(UserProfile profile, List<FoodItem> foodDb, {String? cuisineType}) async {
+  Future<String> generateMealPlan(
+    UserProfile profile, 
+    List<FoodItem> foodDb, 
+    {String? cuisineType, List<String>? mealsToChange, String? currentPlan}
+  ) async {
     final randomTheme = _culinaryThemes[Random().nextInt(_culinaryThemes.length)];
     
     // AI Context Sync: Formatting Food Database items for the prompt
@@ -40,6 +44,19 @@ class GeminiService {
       cuisineInstruction = "Use a mix of Malay, Chinese, and Indian Malaysian cuisines.";
     }
 
+    String partialInstruction = "";
+    if (mealsToChange != null && currentPlan != null && mealsToChange.isNotEmpty) {
+      partialInstruction = """
+      The user already has a plan:
+      $currentPlan
+      
+      TASK:
+      - KEEP the meals that are NOT in this list exactly the same: ${mealsToChange.join(', ')}.
+      - REGENERATE ONLY these specific meals: ${mealsToChange.join(', ')} using the $cuisineType style.
+      - Ensure the final output still follows the STRICT FORMAT below for ALL 4 meals.
+      """;
+    }
+
     final prompt = """
     Act as a professional medical nutritionist for an elderly person in Malaysia.
     User Profile: ${profile.toPromptString()}
@@ -48,11 +65,13 @@ class GeminiService {
     - Highly Recommended (Safe): $safeFoods.
     - Strictly Avoid/Limit: $warningFoods.
     
+    $partialInstruction
+    
     GENERATE A FRESH 1-DAY MEAL PLAN.
     CUISINE REQUIREMENT: $cuisineInstruction
     
     VARIATION INSTRUCTION: $randomTheme
-    (IMPORTANT: Do not repeat generic meals from previous sessions. Ensure the specific dishes are unique and varied even if the cuisine type is the same as before).
+    (IMPORTANT: Ensure the regenerated dishes are unique and varied).
     
     STRICT OUTPUT FORMAT (Plain text, no markdown):
     Breakfast: [Local Dish Name] - [Brief Ingredients] (Approx. [Calories] kcal)

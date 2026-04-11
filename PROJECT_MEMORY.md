@@ -4,11 +4,11 @@
 Develop the Smart Diet Assistant, a Flutter-based mobile health platform for elderly Malaysians that uses Google Gemini AI for culturally tailored meal planning.
 
 ## Active Phase
-Phase 3: Cuisine Customization & UX Refinement
-1. **Cuisine Selection UI**: Simplified names to "Malay", "Chinese", and "Indian".
-2. **Confirmation Dialog**: Added "Are you sure you want to change current menu?" prompt before regenerating plans.
-3. **AI Prompt Enhancement**: Updated `GeminiService` to strictly focus on chosen cuisines while maintaining medical constraints.
-4. **Randomized Variety**: Added "Surprise me" option and ensured dish uniqueness even when repeating cuisines.
+Phase 4: Partial Menu Control & UX Refinement
+1. **Partial Regeneration**: Users can now select specific meals (Breakfast, Lunch, etc.) to change while keeping others.
+2. **Refined Confirmation**: Swapped "Yes" (Green, Left) and "No" (Red, Right) buttons in the change menu dialog.
+3. **Meal Selection UI**: Added a checkbox dialog to allow selecting individual meals or "All".
+4. **AI Instruction Sync**: Updated `GeminiService` to intelligently merge existing plans with new instructions.
 
 ## Blockers
 None.
@@ -21,7 +21,8 @@ None.
 - Project analyzed and documented in `GEMINI.md`.
 - Implemented Secure API Key Management (`.env`).
 - Fixed Navigation Flow (Auto-login & Logout).
-- Phase 2: Session Persistence & Meal Logging (Dynamic Tracker).
+- Phase 2: Session Persistence & Meal Logging.
+- Phase 3: Cuisine Customization (Malay, Chinese, Indian).
 
 ## Architecture Mapping
 - UI: `lib/screens/`

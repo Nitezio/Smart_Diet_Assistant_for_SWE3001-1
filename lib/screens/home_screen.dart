@@ -60,33 +60,51 @@ class _HomeScreenState extends State<HomeScreen> {
 class MealPlanTab extends StatelessWidget {
   const MealPlanTab({super.key});
 
-  // 1. Confirmation Dialog before changing
+  // 1. Confirmation Dialog (Swapped Buttons & Colors)
   void _showChangeConfirmation(BuildContext context, AppState state) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("Change Menu?"),
-        content: const Text("Are you sure you want to change current menu? This will replace your existing plan for today."),
+        content: const Text("Are you sure you want to change current menu? This will replace your selected meals."),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("No", style: TextStyle(color: Colors.grey)),
-          ),
+          // 🟢 Left: Yes (Green)
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
-              _showCuisinePicker(context, state);
+              _showMealSelectionDialog(context, state);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
             child: const Text("Yes"),
+          ),
+          // 🔴 Right: No (Red)
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text("No"),
           ),
         ],
       ),
     );
   }
 
-  // 2. Cuisine Picker
-  void _showCuisinePicker(BuildContext context, AppState state) {
+  // 2. Meal Selection Dialog (Partial Change)
+  void _showMealSelectionDialog(BuildContext context, AppState state) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return _MealSelectionDialog(
+          onContinue: (selectedMeals) {
+            Navigator.pop(ctx);
+            _showCuisinePicker(context, state, selectedMeals);
+          },
+        );
+      },
+    );
+  }
+
+  // 3. Cuisine Picker
+  void _showCuisinePicker(BuildContext context, AppState state, List<String> mealsToChange) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -104,13 +122,13 @@ class MealPlanTab extends StatelessWidget {
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              const Text("Select a style for today's meal plan:", style: TextStyle(color: Colors.grey)),
+              const Text("Select a style for the regeneration:", style: TextStyle(color: Colors.grey)),
               const SizedBox(height: 20),
-              _cuisineOption(context, state, "Malay", Icons.restaurant),
-              _cuisineOption(context, state, "Chinese", Icons.ramen_dining),
-              _cuisineOption(context, state, "Indian", Icons.kebab_dining),
+              _cuisineOption(context, state, "Malay", Icons.restaurant, mealsToChange),
+              _cuisineOption(context, state, "Chinese", Icons.ramen_dining, mealsToChange),
+              _cuisineOption(context, state, "Indian", Icons.kebab_dining, mealsToChange),
               const Divider(),
-              _cuisineOption(context, state, "Surprise me (Random)", Icons.auto_awesome, isSpecial: true),
+              _cuisineOption(context, state, "Surprise me (Random)", Icons.auto_awesome, mealsToChange, isSpecial: true),
             ],
           ),
         );
@@ -118,13 +136,13 @@ class MealPlanTab extends StatelessWidget {
     );
   }
 
-  Widget _cuisineOption(BuildContext context, AppState state, String title, IconData icon, {bool isSpecial = false}) {
+  Widget _cuisineOption(BuildContext context, AppState state, String title, IconData icon, List<String> mealsToChange, {bool isSpecial = false}) {
     return ListTile(
       leading: Icon(icon, color: isSpecial ? Colors.orange : Colors.green),
       title: Text(title, style: TextStyle(fontWeight: isSpecial ? FontWeight.bold : FontWeight.normal)),
       onTap: () {
         Navigator.pop(context);
-        state.getDietPlan(cuisineType: title);
+        state.getDietPlan(cuisineType: title, mealsToChange: mealsToChange);
       },
     );
   }
@@ -156,7 +174,7 @@ class MealPlanTab extends StatelessWidget {
               child: SizedBox(
                 height: 40,
                 child: FilledButton.icon(
-                  onPressed: () => _showChangeConfirmation(context, state), // 🟢 Updated to show confirmation first
+                  onPressed: () => _showChangeConfirmation(context, state),
                   style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.green, elevation: 2),
                   icon: const Icon(Icons.shuffle, size: 18),
                   label: const Text("Change Menu"),
@@ -219,7 +237,7 @@ class MealPlanTab extends StatelessWidget {
                         elevation: 4,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
-                      onPressed: () => _showCuisinePicker(context, state), // 🟢 Direct to picker for first time
+                      onPressed: () => _showCuisinePicker(context, state, ["Breakfast", "Lunch", "Dinner", "Snack"]),
                     ),
                   ),
                 ],
@@ -330,6 +348,79 @@ class MealPlanTab extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// --- SUB-WIDGET: MEAL SELECTION DIALOG ---
+class _MealSelectionDialog extends StatefulWidget {
+  final Function(List<String>) onContinue;
+  const _MealSelectionDialog({required this.onContinue});
+
+  @override
+  State<_MealSelectionDialog> createState() => _MealSelectionDialogState();
+}
+
+class _MealSelectionDialogState extends State<_MealSelectionDialog> {
+  final List<String> _options = ["Breakfast", "Lunch", "Dinner", "Snack"];
+  final List<String> _selected = [];
+
+  void _toggleAll(bool? val) {
+    setState(() {
+      if (val == true) {
+        _selected.clear();
+        _selected.addAll(_options);
+      } else {
+        _selected.clear();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    bool isAllSelected = _selected.length == _options.length;
+
+    return AlertDialog(
+      title: const Text("Select Meals to Change"),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CheckboxListTile(
+              title: const Text("Select All", style: TextStyle(fontWeight: FontWeight.bold)),
+              value: isAllSelected,
+              onChanged: _toggleAll,
+              activeColor: Colors.green,
+            ),
+            const Divider(),
+            ..._options.map((meal) => CheckboxListTile(
+              title: Text(meal),
+              value: _selected.contains(meal),
+              activeColor: Colors.green,
+              onChanged: (val) {
+                setState(() {
+                  if (val == true) {
+                    _selected.add(meal);
+                  } else {
+                    _selected.remove(meal);
+                  }
+                });
+              },
+            )),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+        ),
+        ElevatedButton(
+          onPressed: _selected.isEmpty ? null : () => widget.onContinue(_selected),
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+          child: const Text("Continue"),
+        ),
+      ],
     );
   }
 }
