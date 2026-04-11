@@ -1,11 +1,8 @@
 import 'dart:math';
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../models/user_profile.dart';
-import '../models/meal_plan.dart';
 import '../providers/app_state.dart';
 
 class GeminiService {

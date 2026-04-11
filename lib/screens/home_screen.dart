@@ -297,9 +297,34 @@ class _MealSelectionDialogState extends State<_MealSelectionDialog> {
     return AlertDialog(
       title: const Text("Select Meals to Change"),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
-        CheckboxListTile(title: const Text("Select All"), value: _selected.length == 4, onChanged: (v) => setState(() => v! ? _selected..clear()..addAll(_options) : _selected.clear())),
+        CheckboxListTile(
+          title: const Text("Select All"), 
+          value: _selected.length == 4, 
+          onChanged: (v) {
+            setState(() {
+              if (v == true) {
+                _selected.clear();
+                _selected.addAll(_options);
+              } else {
+                _selected.clear();
+              }
+            });
+          }
+        ),
         const Divider(),
-        ..._options.map((m) => CheckboxListTile(title: Text(m), value: _selected.contains(m), onChanged: (v) => setState(() => v! ? _selected.add(m) : _selected.remove(m)))),
+        ..._options.map((m) => CheckboxListTile(
+          title: Text(m), 
+          value: _selected.contains(m), 
+          onChanged: (v) {
+            setState(() {
+              if (v == true) {
+                _selected.add(m);
+              } else {
+                _selected.remove(m);
+              }
+            });
+          }
+        )),
       ]),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
