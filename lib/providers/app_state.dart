@@ -133,28 +133,42 @@ class AppState with ChangeNotifier {
     notifyListeners();
     
     // AI Context Sync: Passing Food Database, Cuisine Type, and specific meals to AI
-    _currentMealPlan = await _aiService.generateMealPlan(
+    final newPlan = await _aiService.generateMealPlan(
       _user!, 
       _foodDatabase, 
       cuisineType: cuisineType,
       mealsToChange: mealsToChange,
       currentPlan: _currentMealPlan,
     );
+
+    if (newPlan.startsWith("Error")) {
+      _currentMealPlan = newPlan;
+    } else {
+      _currentMealPlan = newPlan;
+      
+      // LOGIC: Reset calorie/logging state
+      if (mealsToChange == null || mealsToChange.length >= 4) {
+        // Full Reset
+        _consumedCalories = 0;
+        _loggedMeals = [];
+      } else {
+        // Partial Reset: Remove logging status ONLY for the regenerated meals
+        // Note: Calories are tricky to subtract precisely without a structured DB, 
+        // so we reset them to 0 to be safe and let user re-log current state.
+        _consumedCalories = 0; 
+        _loggedMeals.removeWhere((m) => mealsToChange.contains(m));
+      }
+
+      // Persist session
+      final prefs = await SharedPreferences.getInstance();
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      await prefs.setString('current_meal_plan', _currentMealPlan!);
+      await prefs.setString('meal_plan_date', today);
+      await prefs.setInt('consumed_calories', _consumedCalories);
+      await prefs.setStringList('logged_meals', _loggedMeals);
+    }
     
     _isLoading = false;
-    
-    // Persist session
-    final prefs = await SharedPreferences.getInstance();
-    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    await prefs.setString('current_meal_plan', _currentMealPlan!);
-    await prefs.setString('meal_plan_date', today);
-    
-    // Reset daily logs on fresh generation
-    _consumedCalories = 0;
-    _loggedMeals = [];
-    await prefs.setInt('consumed_calories', 0);
-    await prefs.setStringList('logged_meals', []);
-    
     notifyListeners();
   }
 

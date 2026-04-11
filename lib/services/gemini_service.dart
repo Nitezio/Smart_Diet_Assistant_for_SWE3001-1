@@ -39,48 +39,69 @@ class GeminiService {
 
     String cuisineInstruction = "";
     if (cuisineType != null && cuisineType != "Surprise me (Random)") {
-      cuisineInstruction = "STRICTLY focus on $cuisineType Malaysian Cuisine for all meals.";
+      cuisineInstruction = "STRICTLY focus on $cuisineType Malaysian Cuisine for any new/regenerated meals.";
     } else {
-      cuisineInstruction = "Use a mix of Malay, Chinese, and Indian Malaysian cuisines.";
+      cuisineInstruction = "Use a mix of Malay, Chinese, and Indian Malaysian cuisines for new meals.";
     }
 
-    String partialInstruction = "";
-    if (mealsToChange != null && currentPlan != null && mealsToChange.isNotEmpty) {
-      partialInstruction = """
-      The user already has a plan:
+    bool isPartialUpdate = mealsToChange != null && currentPlan != null && mealsToChange.isNotEmpty && mealsToChange.length < 4;
+
+    String prompt = "";
+    
+    if (isPartialUpdate) {
+      // 🟢 STRATEGY: Forced Merging Prompt
+      prompt = """
+      Act as a professional medical nutritionist for an elderly person in Malaysia.
+      User Profile: ${profile.toPromptString()}
+      
+      VERIFIED FOOD DATABASE CONTEXT:
+      - Highly Recommended (Safe): $safeFoods.
+      - Strictly Avoid/Limit: $warningFoods.
+      
+      CURRENT PLAN:
       $currentPlan
       
-      TASK:
-      - KEEP the meals that are NOT in this list exactly the same: ${mealsToChange.join(', ')}.
-      - REGENERATE ONLY these specific meals: ${mealsToChange.join(', ')} using the $cuisineType style.
-      - Ensure the final output still follows the STRICT FORMAT below for ALL 4 meals.
+      TASK: 
+      Update the current plan by REGENERATING ONLY these specific meals: ${mealsToChange.join(', ')}.
+      
+      STRICT CONSTRAINTS:
+      1. For meals NOT in the list (${mealsToChange.join(', ')}), COPY their text from the CURRENT PLAN exactly as they are. Do not change a single word.
+      2. For the meals in the list (${mealsToChange.join(', ')}), generate NEW options using the $cuisineType style.
+      3. VARIATION: $randomTheme.
+      4. Ensure the medical reasoning and nutrients are recalculated to match the new combined plan.
+      
+      STRICT OUTPUT FORMAT (Plain text, no markdown):
+      Breakfast: [Local Dish Name] - [Brief Ingredients] (Approx. [Calories] kcal)
+      Lunch: [Local Dish Name] - [Brief Ingredients] (Approx. [Calories] kcal)
+      Dinner: [Local Dish Name] - [Brief Ingredients] (Approx. [Calories] kcal)
+      Snack: [Local Kuih/Fruit] (Approx. [Calories] kcal)
+      Reasoning: [Updated medical explanation]
+      Nutrients: [Updated Total Calories] kcal, [Updated Protein]g
+      """;
+    } else {
+      // 🟢 STRATEGY: Fresh Generation Prompt
+      prompt = """
+      Act as a professional medical nutritionist for an elderly person in Malaysia.
+      User Profile: ${profile.toPromptString()}
+      
+      VERIFIED FOOD DATABASE CONTEXT:
+      - Highly Recommended (Safe): $safeFoods.
+      - Strictly Avoid/Limit: $warningFoods.
+      
+      CUISINE REQUIREMENT: $cuisineInstruction
+      VARIATION INSTRUCTION: $randomTheme
+      
+      TASK: Generate a FRESH 1-Day Meal Plan using LOCAL MALAYSIAN DISHES.
+      
+      STRICT OUTPUT FORMAT (Plain text, no markdown):
+      Breakfast: [Local Dish Name] - [Brief Ingredients] (Approx. [Calories] kcal)
+      Lunch: [Local Dish Name] - [Brief Ingredients] (Approx. [Calories] kcal)
+      Dinner: [Local Dish Name] - [Brief Ingredients] (Approx. [Calories] kcal)
+      Snack: [Local Kuih/Fruit] (Approx. [Calories] kcal)
+      Reasoning: [1 sentence medical explanation why this fits their condition]
+      Nutrients: [Total Calories] kcal, [Protein]g
       """;
     }
-
-    final prompt = """
-    Act as a professional medical nutritionist for an elderly person in Malaysia.
-    User Profile: ${profile.toPromptString()}
-    
-    VERIFIED FOOD DATABASE CONTEXT:
-    - Highly Recommended (Safe): $safeFoods.
-    - Strictly Avoid/Limit: $warningFoods.
-    
-    $partialInstruction
-    
-    GENERATE A FRESH 1-DAY MEAL PLAN.
-    CUISINE REQUIREMENT: $cuisineInstruction
-    
-    VARIATION INSTRUCTION: $randomTheme
-    (IMPORTANT: Ensure the regenerated dishes are unique and varied).
-    
-    STRICT OUTPUT FORMAT (Plain text, no markdown):
-    Breakfast: [Local Dish Name] - [Brief Ingredients] (Approx. [Calories] kcal)
-    Lunch: [Local Dish Name] - [Brief Ingredients] (Approx. [Calories] kcal)
-    Dinner: [Local Dish Name] - [Brief Ingredients] (Approx. [Calories] kcal)
-    Snack: [Local Kuih/Fruit] (Approx. [Calories] kcal)
-    Reasoning: [1 sentence medical explanation why this fits their condition]
-    Nutrients: [Total Calories] kcal, [Protein]g
-    """;
 
     try {
       final content = [Content.text(prompt)];
