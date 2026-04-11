@@ -173,8 +173,21 @@ class MealPlanTab extends StatelessWidget {
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
         actions: [
+          // 🟢 FIXED: "Change Menu" button with Text and Icon
           if (hasPlan && !state.isLoading)
-            IconButton(icon: const Icon(Icons.shuffle), onPressed: () => _showChangeConfirmation(context, state)),
+            Padding(
+              padding: const EdgeInsets.only(right: 12.0),
+              child: FilledButton.icon(
+                onPressed: () => _showChangeConfirmation(context, state),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.green,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                icon: const Icon(Icons.shuffle, size: 18),
+                label: const Text("Change Menu", style: TextStyle(fontSize: 12)),
+              ),
+            ),
         ],
       ),
       body: Builder(
@@ -200,7 +213,7 @@ class MealPlanTab extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  FaIcon(FontAwesomeIcons.carrot, size: 60, color: Colors.green),
+                  const FaIcon(FontAwesomeIcons.carrot, size: 60, color: Colors.green),
                   const SizedBox(height: 24),
                   const Text("Ready to Eat Healthy?", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
@@ -300,30 +313,13 @@ class _MealSelectionDialogState extends State<_MealSelectionDialog> {
         CheckboxListTile(
           title: const Text("Select All"), 
           value: _selected.length == 4, 
-          onChanged: (v) {
-            setState(() {
-              if (v == true) {
-                _selected.clear();
-                _selected.addAll(_options);
-              } else {
-                _selected.clear();
-              }
-            });
-          }
+          onChanged: (v) => setState(() => v! ? (_selected..clear()..addAll(_options)) : _selected.clear())
         ),
         const Divider(),
         ..._options.map((m) => CheckboxListTile(
           title: Text(m), 
           value: _selected.contains(m), 
-          onChanged: (v) {
-            setState(() {
-              if (v == true) {
-                _selected.add(m);
-              } else {
-                _selected.remove(m);
-              }
-            });
-          }
+          onChanged: (v) => setState(() => v! ? _selected.add(m) : _selected.remove(m))
         )),
       ]),
       actions: [
@@ -345,7 +341,7 @@ class TrackerTab extends StatelessWidget {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(children: [
-          FaIcon(FontAwesomeIcons.chartPie, size: 60, color: Colors.green),
+          const FaIcon(FontAwesomeIcons.chartPie, size: 60, color: Colors.green),
           const SizedBox(height: 16),
           const Text("Calories Today", style: TextStyle(fontSize: 18, color: Colors.grey)),
           Text("${state.consumedCalories} / ${state.calorieGoal} kcal", style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.green)),
@@ -375,11 +371,111 @@ class TrackerTab extends StatelessWidget {
   }
 }
 
-// Keeping ChatTab and ProfileTab as is...
-class ChatTab extends StatelessWidget {
+// --- 🟢 UPDATED: FUNCTIONAL CHAT TAB ---
+class ChatTab extends StatefulWidget {
   const ChatTab({super.key});
+
   @override
-  Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text("Chat with Nutritionist")), body: const Center(child: Text("Chat functional in next update.")));
+  State<ChatTab> createState() => _ChatTabState();
+}
+
+class _ChatTabState extends State<ChatTab> {
+  final _msgCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
+
+  void _send(AppState state) async {
+    if (_msgCtrl.text.trim().isEmpty) return;
+    final msg = _msgCtrl.text;
+    _msgCtrl.clear();
+    await state.sendChatMessage(msg);
+    _scrollCtrl.animateTo(_scrollCtrl.position.maxScrollExtent, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = Provider.of<AppState>(context);
+    final history = state.chatHistory;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("AI Nutritionist Chat"),
+        backgroundColor: Colors.green,
+        foregroundColor: Colors.white,
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: history.isEmpty
+                ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const Icon(Icons.chat_bubble_outline, size: 60, color: Colors.grey),
+                    const SizedBox(height: 16),
+                    Text("Ask me about Malaysian food or your diet goal!", style: TextStyle(color: Colors.grey[600])),
+                  ]))
+                : ListView.builder(
+                    controller: _scrollCtrl,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: history.length,
+                    itemBuilder: (context, i) => _chatBubble(history[i]),
+                  ),
+          ),
+          if (state.isTyping)
+            const Padding(padding: EdgeInsets.all(8.0), child: LinearProgressIndicator(color: Colors.green, minHeight: 2)),
+          
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _msgCtrl,
+                    decoration: InputDecoration(
+                      hintText: "Ask Dr. Lee...",
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    ),
+                    onSubmitted: (_) => _send(state),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                CircleAvatar(
+                  backgroundColor: Colors.green,
+                  child: IconButton(
+                    icon: const Icon(Icons.send, color: Colors.white),
+                    onPressed: () => _send(state),
+                  ),
+                )
+              ],
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _chatBubble(ChatMessage msg) {
+    return Align(
+      alignment: msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 5),
+        padding: const EdgeInsets.all(12),
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+        decoration: BoxDecoration(
+          color: msg.isUser ? Colors.green : Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(15),
+            topRight: const Radius.circular(15),
+            bottomLeft: Radius.circular(msg.isUser ? 15 : 0),
+            bottomRight: Radius.circular(msg.isUser ? 0 : 15),
+          ),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)],
+        ),
+        child: Text(
+          msg.text, 
+          style: TextStyle(color: msg.isUser ? Colors.white : Colors.black87, fontSize: 15)
+        ),
+      ),
+    );
+  }
 }
 
 class ProfileTab extends StatelessWidget {
@@ -396,6 +492,7 @@ class ProfileTab extends StatelessWidget {
           const Center(child: CircleAvatar(radius: 50, backgroundColor: Colors.green, child: Icon(Icons.person, size: 50, color: Colors.white))),
           const SizedBox(height: 20),
           ListTile(title: const Text("Name"), subtitle: Text(user.name), leading: const Icon(Icons.person)),
+          ListTile(title: const Text("Goal"), subtitle: Text(user.goal), leading: const Icon(Icons.flag), tileColor: Colors.green.shade50),
           ListTile(title: const Text("Conditions"), subtitle: Text(user.conditions.join(", ")), leading: const Icon(Icons.medical_services)),
           const Divider(),
           Padding(

@@ -7,8 +7,6 @@ import '../models/meal_plan.dart';
 import '../services/gemini_service.dart';
 import '../services/database_helper.dart';
 
-// Reposting FoodItem and MealHistoryItem models here for completeness if needed elsewhere, 
-// though they are also handled by DatabaseHelper.
 class FoodItem {
   String id;
   String name;
@@ -54,15 +52,16 @@ class AppState with ChangeNotifier {
   String _selectedRole = 'Elderly';
   bool _isProfileLoaded = false;
 
-  // --- STREAMING SUPPORT ---
-  String _streamingJSON = "";
-
-  // --- TRACKING DATA ---
+  // --- PERSISTENCE DATA ---
   int _consumedCalories = 0;
   final int _calorieGoal = 1800;
   List<String> _loggedMeals = []; 
   List<MealHistoryItem> _history = []; 
   List<FoodItem> _foodDatabase = [];
+  
+  // --- 🟢 NEW: CHAT DATA ---
+  List<ChatMessage> _chatHistory = [];
+  bool _isTyping = false;
 
   AppState() {
     _init();
@@ -79,11 +78,14 @@ class AppState with ChangeNotifier {
   int get calorieGoal => _calorieGoal;
   List<MealHistoryItem> get history => _history;
   List<String> get loggedMeals => _loggedMeals;
+  List<ChatMessage> get chatHistory => _chatHistory;
+  bool get isTyping => _isTyping;
 
   Future<void> _init() async {
     await _loadProfile();
     await _syncFromDatabase();
     await _loadDailyState();
+    await _loadChatHistory();
     _isProfileLoaded = true;
     notifyListeners();
   }
@@ -91,7 +93,6 @@ class AppState with ChangeNotifier {
   Future<void> _syncFromDatabase() async {
     _foodDatabase = await _db.getAllFood();
     if (_foodDatabase.isEmpty) {
-      // Seed default data if empty
       _foodDatabase = [
         FoodItem(id: '1', name: "Nasi Lemak", details: "High Fat, High Sodium", isWarning: true),
         FoodItem(id: '2', name: "Teh Tarik", details: "High Sugar (Avoid for Diabetics)", isWarning: true),
@@ -118,14 +119,20 @@ class AppState with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
     final savedDate = prefs.getString('meal_plan_date');
-    
     if (savedDate == today) {
       final planData = prefs.getString('current_meal_plan_json');
-      if (planData != null) {
-        _currentMealPlan = MealPlan.fromJson(json.decode(planData));
-      }
+      if (planData != null) { _currentMealPlan = MealPlan.fromJson(json.decode(planData)); }
       _consumedCalories = prefs.getInt('consumed_calories') ?? 0;
       _loggedMeals = prefs.getStringList('logged_meals') ?? [];
+    }
+  }
+
+  Future<void> _loadChatHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString('chat_history');
+    if (data != null) {
+      final List decoded = json.decode(data);
+      _chatHistory = decoded.map((e) => ChatMessage.fromJson(e)).toList();
     }
   }
 
@@ -135,8 +142,8 @@ class AppState with ChangeNotifier {
 
   void setUser(UserProfile profile) {
     _user = profile;
-    notifyListeners();
     _saveProfile(profile);
+    notifyListeners();
   }
 
   Future<void> _saveProfile(UserProfile profile) async {
@@ -147,6 +154,7 @@ class AppState with ChangeNotifier {
   Future<void> logout() async {
     _user = null;
     _currentMealPlan = null;
+    _chatHistory = [];
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
     await _db.clearAllData();
@@ -154,49 +162,51 @@ class AppState with ChangeNotifier {
     notifyListeners();
   }
 
+  // --- 🟢 CHAT LOGIC ---
+  Future<void> sendChatMessage(String message) async {
+    if (message.trim().isEmpty || _user == null) return;
+
+    // 1. Add User Message
+    final userMsg = ChatMessage(text: message, isUser: true, timestamp: DateTime.now());
+    _chatHistory.add(userMsg);
+    _isTyping = true;
+    notifyListeners();
+
+    // 2. Get AI Response
+    final aiResponse = await _aiService.getChatResponse(_user!, _chatHistory, message);
+    
+    // 3. Add AI Message
+    final aiMsg = ChatMessage(text: aiResponse, isUser: false, timestamp: DateTime.now());
+    _chatHistory.add(aiMsg);
+    _isTyping = false;
+    
+    // 4. Persist
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('chat_history', json.encode(_chatHistory.map((e) => e.toJson()).toList()));
+    
+    notifyListeners();
+  }
+
   Future<void> getDietPlan({String? cuisineType, List<String>? mealsToChange}) async {
     if (_user == null) return;
 
-    // 1. Check Internet for Fallback
     bool online = await _aiService.hasInternet();
-    if (!online) {
-      if (_currentMealPlan != null) {
-        debugPrint("🟠 Offline: Using previously generated plan as fallback.");
-        return; // Already have a plan loaded
-      } else {
-        // Handle absolute no-plan + no-internet situation
-        return; 
-      }
-    }
+    if (!online && _currentMealPlan != null) return;
 
     _isLoading = true;
-    _streamingJSON = "";
     notifyListeners();
 
     final currentPlanStr = _currentMealPlan != null ? json.encode(_currentMealPlan!.toJson()) : null;
+    final stream = _aiService.generateMealPlanStream(_user!, _foodDatabase, cuisineType: cuisineType, mealsToChange: mealsToChange, currentPlan: currentPlanStr);
 
-    final stream = _aiService.generateMealPlanStream(
-      _user!, 
-      _foodDatabase, 
-      cuisineType: cuisineType,
-      mealsToChange: mealsToChange,
-      currentPlan: currentPlanStr
-    );
-
+    String buffer = "";
     await for (final chunk in stream) {
-      if (chunk.startsWith("ERROR")) {
-        debugPrint("🔴 AI Stream Error: $chunk");
-        break;
-      }
-      _streamingJSON += chunk;
-      // We don't parse until complete for stability with JSON
+      if (chunk.startsWith("ERROR")) break;
+      buffer += chunk;
     }
 
     try {
-      final decoded = json.decode(_streamingJSON);
-      _currentMealPlan = MealPlan.fromJson(decoded);
-      
-      // LOGIC: Reset/Sync state
+      _currentMealPlan = MealPlan.fromJson(json.decode(buffer));
       if (mealsToChange == null || mealsToChange.length >= 4) {
         _consumedCalories = 0;
         _loggedMeals = [];
@@ -204,11 +214,8 @@ class AppState with ChangeNotifier {
         _loggedMeals.removeWhere((m) => mealsToChange.contains(m));
         _recalculateCalories();
       }
-
       _persistDailyState();
-    } catch (e) {
-      debugPrint("🔴 JSON Parse Error: $e. Raw: $_streamingJSON");
-    }
+    } catch (e) { debugPrint("JSON Error: $e"); }
 
     _isLoading = false;
     notifyListeners();
@@ -216,9 +223,7 @@ class AppState with ChangeNotifier {
 
   void _recalculateCalories() {
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    _consumedCalories = _history
-        .where((item) => DateFormat('yyyy-MM-dd').format(item.timestamp) == today)
-        .fold(0, (sum, item) => sum + item.calories);
+    _consumedCalories = _history.where((item) => DateFormat('yyyy-MM-dd').format(item.timestamp) == today).fold(0, (sum, item) => sum + item.calories);
   }
 
   Future<void> _persistDailyState() async {
@@ -233,19 +238,11 @@ class AppState with ChangeNotifier {
 
   void logMeal(String mealType, String dishName, int calories) async {
     if (_loggedMeals.contains(mealType)) return;
-
     _consumedCalories += calories;
     _loggedMeals.add(mealType);
-    
-    final item = MealHistoryItem(
-      mealType: mealType,
-      dishName: dishName,
-      calories: calories,
-      timestamp: DateTime.now(),
-    );
+    final item = MealHistoryItem(mealType: mealType, dishName: dishName, calories: calories, timestamp: DateTime.now());
     _history.insert(0, item);
     await _db.insertHistory(item);
-    
     _persistDailyState();
     notifyListeners();
   }
@@ -253,24 +250,14 @@ class AppState with ChangeNotifier {
   // --- FOOD DB CRUD ---
   void addFood(String name, String details, bool isWarning) async {
     final item = FoodItem(id: DateTime.now().toString(), name: name, details: details, isWarning: isWarning);
-    _foodDatabase.add(item);
-    await _db.insertFood(item);
-    notifyListeners();
+    _foodDatabase.add(item); await _db.insertFood(item); notifyListeners();
   }
-
   void updateFood(String id, String newName, String newDetails, bool newIsWarning) async {
     final index = _foodDatabase.indexWhere((item) => item.id == id);
     if (index != -1) {
       final item = FoodItem(id: id, name: newName, details: newDetails, isWarning: newIsWarning);
-      _foodDatabase[index] = item;
-      await _db.updateFood(item);
-      notifyListeners();
+      _foodDatabase[index] = item; await _db.updateFood(item); notifyListeners();
     }
   }
-
-  void deleteFood(String id) async {
-    _foodDatabase.removeWhere((item) => item.id == id);
-    await _db.deleteFood(id);
-    notifyListeners();
-  }
+  void deleteFood(String id) async { _foodDatabase.removeWhere((item) => item.id == id); await _db.deleteFood(id); notifyListeners(); }
 }

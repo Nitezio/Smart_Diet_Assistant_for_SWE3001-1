@@ -6,6 +6,7 @@ class UserProfile {
   double weight;
   double height;
   String activityLevel;
+  String goal; // 🟢 NEW: User's health goal (e.g., Weight Loss, Muscle Gain)
   List<String> conditions;
   List<String> allergies;
 
@@ -17,6 +18,7 @@ class UserProfile {
     required this.weight,
     required this.height,
     required this.activityLevel,
+    required this.goal,
     required this.conditions,
     required this.allergies,
   });
@@ -30,6 +32,7 @@ class UserProfile {
       weight: (json['weight'] as num?)?.toDouble() ?? 70.0,
       height: (json['height'] as num?)?.toDouble() ?? 165.0,
       activityLevel: json['activityLevel'] ?? 'Moderate',
+      goal: json['goal'] ?? 'Healthy Aging',
       conditions: List<String>.from(json['conditions'] ?? []),
       allergies: List<String>.from(json['allergies'] ?? []),
     );
@@ -44,6 +47,7 @@ class UserProfile {
       'weight': weight,
       'height': height,
       'activityLevel': activityLevel,
+      'goal': goal,
       'conditions': conditions,
       'allergies': allergies,
     };
@@ -51,8 +55,9 @@ class UserProfile {
 
   String toPromptString() {
     return """
-    User Role: $role (The user is a $role).
+    User Role: $role.
     Profile Name: $name.
+    Goal: $goal.
     Details: $age year old $gender living in Malaysia.
     Body: Weight ${weight}kg, Height ${height}cm.
     Activity: $activityLevel.
@@ -60,9 +65,8 @@ class UserProfile {
     Allergies: ${allergies.join(', ')}.
     
     CONTEXT:
-    - If Role is Caregiver: The user is managing diet for this patient.
-    - If Role is Elderly: The user is managing their own diet.
     - Requirement: Local Malaysian Cuisine (Halal).
+    - Advice should align with the specific GOAL of $goal.
     """;
   }
 }

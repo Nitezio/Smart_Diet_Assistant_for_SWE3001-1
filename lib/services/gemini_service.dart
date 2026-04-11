@@ -3,6 +3,7 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../models/user_profile.dart';
+import '../models/meal_plan.dart';
 import '../providers/app_state.dart';
 
 class GeminiService {
@@ -51,6 +52,7 @@ class GeminiService {
     final prompt = """
     Act as a professional medical nutritionist for an elderly person in Malaysia.
     User Profile: ${profile.toPromptString()}
+    HEALTH GOAL: ${profile.goal}.
     VERIFIED FOOD DATABASE: Safe: $safeFoods. Avoid: $warningFoods.
     $partialContext
     CUISINE: $cuisineInstruction. THEME: $randomTheme.
@@ -78,6 +80,40 @@ class GeminiService {
       }
     } catch (e) {
       yield "ERROR: $e";
+    }
+  }
+
+  /// 🟢 NEW: Handles Chat with AI Nutritionist
+  Future<String> getChatResponse(UserProfile profile, List<ChatMessage> history, String userMessage) async {
+    // We use a different generation config for chat (text, not JSON)
+    final chatModel = GenerativeModel(
+      model: 'gemini-2.5-flash', 
+      apiKey: dotenv.env['GEMINI_API_KEY'] ?? "",
+    );
+
+    final historyContext = history.take(10).map((m) => "${m.isUser ? 'User' : 'Assistant'}: ${m.text}").join("\n");
+
+    final prompt = """
+    You are a professional medical nutritionist in Malaysia helping a user named ${profile.name}.
+    User Profile: ${profile.toPromptString()}
+    User Goal: ${profile.goal}.
+    
+    Previous Conversation:
+    $historyContext
+    
+    Current User Question: $userMessage
+    
+    Instructions:
+    - Provide helpful, medically accurate, and culturally appropriate nutritional advice.
+    - Keep responses concise (2-3 sentences).
+    - If they ask about local Malaysian food, be specific about ingredients or cooking styles.
+    """;
+
+    try {
+      final response = await chatModel.generateContent([Content.text(prompt)]);
+      return response.text ?? "I'm sorry, I couldn't process that.";
+    } catch (e) {
+      return "Error connecting to nutritionist: $e";
     }
   }
 }

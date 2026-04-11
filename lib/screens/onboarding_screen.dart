@@ -21,20 +21,30 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   String _gender = "Male";
   String _activityLevel = "Moderate";
+  String _goal = "Healthy Aging"; // 🟢 NEW: Default Goal
+
+  final List<String> _goalOptions = [
+    "Healthy Aging",
+    "Weight Loss",
+    "Muscle Gain",
+    "Blood Sugar Control",
+    "Heart Health",
+    "Easy Digesting"
+  ];
 
   void _save(BuildContext context) {
     if (_formKey.currentState!.validate()) {
-      // 1. Get the selected role from the Provider
       final role = Provider.of<AppState>(context, listen: false).selectedRole;
 
       final profile = UserProfile(
-        role: role, // 🟢 FIXED: Passing the required 'role' here
+        role: role,
         name: _nameCtrl.text,
         age: int.tryParse(_ageCtrl.text) ?? 60,
         gender: _gender,
         weight: double.tryParse(_weightCtrl.text) ?? 70.0,
         height: double.tryParse(_heightCtrl.text) ?? 165.0,
         activityLevel: _activityLevel,
+        goal: _goal, // 🟢 PASSING THE GOAL
         conditions: _condCtrl.text.split(','),
         allergies: _allergyCtrl.text.split(','),
       );
@@ -46,7 +56,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Get role to change title text (UX improvement)
     final role = Provider.of<AppState>(context).selectedRole;
     final isManagingSelf = role == 'Elderly';
     final titleText = isManagingSelf ? "Setup Your Profile" : "Setup Patient Profile";
@@ -103,7 +112,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ]),
 
             const SizedBox(height: 25),
-            const Text("Health Context", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
+            const Text("Health Context & Goal", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
+            const SizedBox(height: 10),
+
+            // 🟢 GOAL SELECTION
+            DropdownButtonFormField(
+              value: _goal,
+              decoration: const InputDecoration(labelText: "Primary Health Goal", border: OutlineInputBorder(), prefixIcon: Icon(Icons.flag)),
+              items: _goalOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+              onChanged: (v) => setState(() => _goal = v!),
+            ),
             const SizedBox(height: 10),
 
             TextFormField(
