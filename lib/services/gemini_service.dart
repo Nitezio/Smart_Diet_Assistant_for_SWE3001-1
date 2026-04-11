@@ -26,12 +26,19 @@ class GeminiService {
   }
 
   /// Generates a meal plan based on user profile and local food database constraints.
-  Future<String> generateMealPlan(UserProfile profile, List<FoodItem> foodDb) async {
+  Future<String> generateMealPlan(UserProfile profile, List<FoodItem> foodDb, {String? cuisineType}) async {
     final randomTheme = _culinaryThemes[Random().nextInt(_culinaryThemes.length)];
     
     // AI Context Sync: Formatting Food Database items for the prompt
     final safeFoods = foodDb.where((f) => !f.isWarning).map((f) => f.name).join(', ');
     final warningFoods = foodDb.where((f) => f.isWarning).map((f) => "${f.name} (${f.details})").join(', ');
+
+    String cuisineInstruction = "";
+    if (cuisineType != null && cuisineType != "Surprise me (Random)") {
+      cuisineInstruction = "STRICTLY focus on $cuisineType Malaysian Cuisine for all meals.";
+    } else {
+      cuisineInstruction = "Use a mix of Malay, Chinese, and Indian Malaysian cuisines.";
+    }
 
     final prompt = """
     Act as a professional medical nutritionist for an elderly person in Malaysia.
@@ -41,10 +48,11 @@ class GeminiService {
     - Highly Recommended (Safe): $safeFoods.
     - Strictly Avoid/Limit: $warningFoods.
     
-    Generate a FRESH 1-Day Meal Plan using LOCAL MALAYSIAN DISHES.
+    GENERATE A FRESH 1-DAY MEAL PLAN.
+    CUISINE REQUIREMENT: $cuisineInstruction
     
     VARIATION INSTRUCTION: $randomTheme
-    (Do not repeat generic meals. Offer variety so the user does not get bored).
+    (IMPORTANT: Do not repeat generic meals from previous sessions. Ensure the specific dishes are unique and varied even if the cuisine type is the same as before).
     
     STRICT OUTPUT FORMAT (Plain text, no markdown):
     Breakfast: [Local Dish Name] - [Brief Ingredients] (Approx. [Calories] kcal)

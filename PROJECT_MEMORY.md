@@ -4,25 +4,24 @@
 Develop the Smart Diet Assistant, a Flutter-based mobile health platform for elderly Malaysians that uses Google Gemini AI for culturally tailored meal planning.
 
 ## Active Phase
-Phase 2: Advanced Logic Implementation (No BaaS)
-1. **Session Persistence for AI**: Saving/loading daily meal plans via `SharedPreferences`.
-2. **Meal Logging Logic**: Dynamic calorie tracking and interactive meal cards.
-3. **AI Context Synchronization**: Injecting Admin food database items into the Gemini prompt for better accuracy.
+Phase 3: Cuisine Customization
+1. **Cuisine Selection UI**: Added a bottom sheet picker for Malay, Chinese, and Indian Malaysian styles.
+2. **AI Prompt Enhancement**: Updated `GeminiService` to strictly focus on chosen cuisines while maintaining medical constraints.
+3. **Randomized Variety**: Added "Surprise me" option and ensured dish uniqueness even when repeating cuisines.
 
 ## Blockers
 None.
 
 ## Next Steps
-1. Refactor `AppState` to handle meal plan persistence and calorie tracking.
-2. Update `GeminiService` to accept and utilize the Admin Food Database.
-3. Connect `HomeScreen` UI (Meal cards & Tracker) to the new logic.
+1. Push to feature branch and wait for user review.
+2. Merge into master if approved.
 
 ## Completed (Summary)
 - Project analyzed and documented in `GEMINI.md`.
 - Implemented Secure API Key Management (`.env`).
 - Fixed Navigation Flow (Auto-login & Logout).
-- Resolved all IconData vs FaIconData type mismatches and build errors.
-- Upgraded Kotlin version to 2.1.0 for Android compatibility.
+- Resolved all IconData vs FaIconData type mismatches.
+- Phase 2: Session Persistence & Meal Logging (Dynamic Tracker).
 
 ## Architecture Mapping
 - UI: `lib/screens/`

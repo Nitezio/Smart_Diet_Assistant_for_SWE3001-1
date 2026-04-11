@@ -127,13 +127,13 @@ class AppState with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> getDietPlan() async {
+  Future<void> getDietPlan({String? cuisineType}) async {
     if (_user == null) return;
     _isLoading = true;
     notifyListeners();
     
-    // AI Context Sync: Passing Food Database to AI
-    _currentMealPlan = await _aiService.generateMealPlan(_user!, _foodDatabase);
+    // AI Context Sync: Passing Food Database and Cuisine Type to AI
+    _currentMealPlan = await _aiService.generateMealPlan(_user!, _foodDatabase, cuisineType: cuisineType);
     
     _isLoading = false;
     

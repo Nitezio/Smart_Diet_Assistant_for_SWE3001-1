@@ -60,6 +60,49 @@ class _HomeScreenState extends State<HomeScreen> {
 class MealPlanTab extends StatelessWidget {
   const MealPlanTab({super.key});
 
+  void _showCuisinePicker(BuildContext context, AppState state) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Choose Your Cuisine",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text("Select a style for today's meal plan:", style: TextStyle(color: Colors.grey)),
+              const SizedBox(height: 20),
+              _cuisineOption(context, state, "Malay Malaysian", Icons.restaurant),
+              _cuisineOption(context, state, "Chinese Malaysian", Icons.ramen_dining),
+              _cuisineOption(context, state, "Indian Malaysian", Icons.kebab_dining),
+              const Divider(),
+              _cuisineOption(context, state, "Surprise me (Random)", Icons.auto_awesome, isSpecial: true),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _cuisineOption(BuildContext context, AppState state, String title, IconData icon, {bool isSpecial = false}) {
+    return ListTile(
+      leading: Icon(icon, color: isSpecial ? Colors.orange : Colors.green),
+      title: Text(title, style: TextStyle(fontWeight: isSpecial ? FontWeight.bold : FontWeight.normal)),
+      onTap: () {
+        Navigator.pop(context);
+        state.getDietPlan(cuisineType: title);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppState>(context);
@@ -87,7 +130,7 @@ class MealPlanTab extends StatelessWidget {
               child: SizedBox(
                 height: 40,
                 child: FilledButton.icon(
-                  onPressed: () => state.getDietPlan(),
+                  onPressed: () => _showCuisinePicker(context, state),
                   style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.green, elevation: 2),
                   icon: const Icon(Icons.shuffle, size: 18),
                   label: const Text("Change Menu"),
@@ -150,7 +193,7 @@ class MealPlanTab extends StatelessWidget {
                         elevation: 4,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
-                      onPressed: () => state.getDietPlan(),
+                      onPressed: () => _showCuisinePicker(context, state),
                     ),
                   ),
                 ],
