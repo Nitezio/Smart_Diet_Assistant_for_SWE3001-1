@@ -53,8 +53,8 @@ class DatabaseHelper {
   Future<void> insertFood(FoodItem item) async {
     final db = await instance.database;
     await db.insert(
-      'food_items', 
-      item.toJson(), 
+      'food_items',
+      item.toJson(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
