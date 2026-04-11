@@ -26,7 +26,6 @@ class DatabaseHelper {
   }
 
   Future _createDB(Database db, int version) async {
-    // 1. Table for Admin Food Database
     await db.execute('''
       CREATE TABLE food_items (
         id TEXT PRIMARY KEY,
@@ -36,7 +35,6 @@ class DatabaseHelper {
       )
     ''');
 
-    // 2. Table for Meal History
     await db.execute('''
       CREATE TABLE meal_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,11 +50,7 @@ class DatabaseHelper {
 
   Future<void> insertFood(FoodItem item) async {
     final db = await instance.database;
-    await db.insert(
-      'food_items',
-      item.toJson(),
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('food_items', item.toJson(), conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<List<FoodItem>> getAllFood() async {
@@ -86,6 +80,24 @@ class DatabaseHelper {
     final db = await instance.database;
     final result = await db.query('meal_history', orderBy: 'timestamp DESC');
     return result.map((json) => MealHistoryItem.fromJson(json)).toList();
+  }
+
+  // 🟢 NEW: Get aggregated stats for charts
+  Future<Map<String, int>> getDailyCalorieStats(int days) async {
+    final db = await instance.database;
+    final now = DateTime.now();
+    final startDate = now.subtract(Duration(days: days));
+    
+    // Grouping by date string (YYYY-MM-DD)
+    final result = await db.rawQuery('''
+      SELECT substr(timestamp, 1, 10) as date, SUM(calories) as total 
+      FROM meal_history 
+      WHERE timestamp >= ?
+      GROUP BY date 
+      ORDER BY date ASC
+    ''', [startDate.toIso8601String()]);
+
+    return { for (var row in result) row['date'] as String : row['total'] as int };
   }
 
   Future<void> clearAllData() async {

@@ -7,6 +7,7 @@ import '../models/user_profile.dart';
 import '../models/meal_plan.dart';
 import '../services/gemini_service.dart';
 import '../services/database_helper.dart';
+import '../services/pdf_service.dart';
 
 class FoodItem {
   String id;
@@ -60,6 +61,7 @@ class AppState with ChangeNotifier {
   List<String> _loggedMeals = []; 
   List<MealHistoryItem> _history = []; 
   List<FoodItem> _foodDatabase = [];
+  Map<String, int> _weeklyStats = {}; // 🟢 NEW: Aggregated daily calories
   
   // --- CHAT DATA ---
   List<ChatMessage> _chatHistory = [];
@@ -82,12 +84,14 @@ class AppState with ChangeNotifier {
   List<String> get loggedMeals => _loggedMeals;
   List<ChatMessage> get chatHistory => _chatHistory;
   bool get isTyping => _isTyping;
+  Map<String, int> get weeklyStats => _weeklyStats;
 
   Future<void> _init() async {
     await _loadProfile();
     await _syncFromDatabase();
     await _loadDailyState();
     await _loadChatHistory();
+    await refreshStats(); // 🟢 NEW: Initial stats load
     _isProfileLoaded = true;
     notifyListeners();
   }
@@ -105,6 +109,11 @@ class AppState with ChangeNotifier {
       for (var item in _foodDatabase) { await _db.insertFood(item); }
     }
     _history = await _db.getAllHistory();
+    notifyListeners();
+  }
+
+  Future<void> refreshStats() async {
+    _weeklyStats = await _db.getDailyCalorieStats(7);
     notifyListeners();
   }
 
@@ -161,7 +170,14 @@ class AppState with ChangeNotifier {
     await prefs.clear();
     await _db.clearAllData();
     _history = [];
+    _weeklyStats = {};
     notifyListeners();
+  }
+
+  // --- PDF EXPORT ---
+  Future<void> exportMedicalReport() async {
+    if (_user == null) return;
+    await PdfService.generateMedicalReport(_user!, _history);
   }
 
   // --- CHAT LOGIC ---
@@ -230,32 +246,26 @@ class AppState with ChangeNotifier {
     final item = MealHistoryItem(mealType: mealType, dishName: dishName, calories: calories, timestamp: DateTime.now());
     _history.insert(0, item);
     await _db.insertHistory(item);
+    await refreshStats(); // Update aggregated stats
     _persistDailyState();
     notifyListeners();
   }
 
-  // 🟢 UPDATED: PLATE SCANNER LOGIC with source parameter
   Future<void> scanPlate(BuildContext context, ImageSource source) async {
     final XFile? image = await _picker.pickImage(source: source);
     if (image == null) return;
-
     _isLoading = true;
     notifyListeners();
-
     final bytes = await image.readAsBytes();
     final result = await _aiService.analyzeMealImage(bytes, 'image/jpeg');
-
     if (result != null) {
       final dishName = result['dishName'] ?? 'Unknown Dish';
       final calories = result['calories'] ?? 400;
       logMeal("Scanned Meal", dishName, calories);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("AI identified: $dishName (~$calories kcal)")),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("AI identified: $dishName (~$calories kcal)")));
       }
     }
-
     _isLoading = false;
     notifyListeners();
   }

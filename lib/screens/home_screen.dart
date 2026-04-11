@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../providers/app_state.dart';
 import '../models/meal_plan.dart';
 
@@ -29,7 +30,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // 🟢 NEW: Source picker for Vision
   void _showSourcePicker(BuildContext context, AppState state) {
     showModalBottomSheet(
       context: context,
@@ -88,7 +88,6 @@ class _HomeScreenState extends State<HomeScreen> {
         type: BottomNavigationBarType.fixed,
         onTap: _onItemTapped,
       ),
-      // 🟢 FAB triggers the source picker now
       floatingActionButton: (_selectedIndex == 0 || _selectedIndex == 1)
           ? FloatingActionButton.extended(
               onPressed: () => _showSourcePicker(context, state),
@@ -223,11 +222,7 @@ class MealPlanTab extends StatelessWidget {
               padding: const EdgeInsets.only(right: 12.0),
               child: FilledButton.icon(
                 onPressed: () => _showChangeConfirmation(context, state),
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.green,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
+                style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.green, padding: const EdgeInsets.symmetric(horizontal: 12)),
                 icon: const Icon(Icons.shuffle, size: 18),
                 label: const Text("Change Menu", style: TextStyle(fontSize: 12)),
               ),
@@ -310,7 +305,7 @@ class MealPlanTab extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 80), // Space for FAB
+        const SizedBox(height: 80),
       ],
     );
   }
@@ -375,27 +370,43 @@ class _MealSelectionDialogState extends State<_MealSelectionDialog> {
   }
 }
 
+// --- 🟢 UPDATED: TRACKER TAB WITH GRAPHS ---
 class TrackerTab extends StatelessWidget {
   const TrackerTab({super.key});
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppState>(context);
     final percentage = (state.consumedCalories / state.calorieGoal).clamp(0.0, 1.0);
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Nutritional Tracker"), backgroundColor: Colors.green, foregroundColor: Colors.white),
+      appBar: AppBar(title: const Text("Health Analytics"), backgroundColor: Colors.green, foregroundColor: Colors.white),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(children: [
-          const FaIcon(FontAwesomeIcons.chartPie, size: 60, color: Colors.green),
-          const SizedBox(height: 16),
-          const Text("Calories Today", style: TextStyle(fontSize: 18, color: Colors.grey)),
-          Text("${state.consumedCalories} / ${state.calorieGoal} kcal", style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.green)),
+          // 1. Weekly Trends Graph
+          const Align(alignment: Alignment.centerLeft, child: Text("Weekly Calorie Trends", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
           const SizedBox(height: 20),
+          SizedBox(
+            height: 200,
+            child: _WeeklyBarChart(stats: state.weeklyStats),
+          ),
+          
+          const Divider(height: 40),
+
+          // 2. Today's Progress
+          const Align(alignment: Alignment.centerLeft, child: Text("Today's Progress", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+          const SizedBox(height: 16),
+          const FaIcon(FontAwesomeIcons.chartPie, size: 40, color: Colors.green),
+          Text("${state.consumedCalories} / ${state.calorieGoal} kcal", style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.green)),
+          const SizedBox(height: 10),
           LinearProgressIndicator(value: percentage, color: Colors.green, backgroundColor: Colors.green.shade100, minHeight: 10),
           const SizedBox(height: 8),
           Text("${(percentage * 100).toInt()}% of daily goal"),
+
           const SizedBox(height: 40),
-          const Align(alignment: Alignment.centerLeft, child: Text("Recent History", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
+
+          // 3. Recent History
+          const Align(alignment: Alignment.centerLeft, child: Text("Recent History", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
           const SizedBox(height: 16),
           if (state.history.isEmpty) const Text("No history yet.") else ListView.builder(
             shrinkWrap: true,
@@ -408,14 +419,60 @@ class TrackerTab extends StatelessWidget {
                 child: ListTile(
                   leading: const Icon(Icons.history, color: Colors.green),
                   title: Text(item.dishName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text("${item.mealType} • ${DateFormat('h:mm a').format(item.timestamp)}"),
+                  subtitle: Text("${item.mealType} • ${DateFormat('d MMM, h:mm a').format(item.timestamp)}"),
                   trailing: Text("+${item.calories} kcal", style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
                 ),
               );
             },
           ),
-          const SizedBox(height: 80), // Space for FAB
+          const SizedBox(height: 80),
         ]),
+      ),
+    );
+  }
+}
+
+class _WeeklyBarChart extends StatelessWidget {
+  final Map<String, int> stats;
+  const _WeeklyBarChart({required this.stats});
+
+  @override
+  Widget build(BuildContext context) {
+    // Fill in last 7 days even if no data
+    final List<double> values = [];
+    final List<String> labels = [];
+    final now = DateTime.now();
+
+    for (int i = 6; i >= 0; i--) {
+      final date = now.subtract(Duration(days: i));
+      final dateKey = DateFormat('yyyy-MM-dd').format(date);
+      values.add((stats[dateKey] ?? 0).toDouble());
+      labels.add(DateFormat('E').format(date)); // e.g. "Mon"
+    }
+
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: 2500, // Reasonable max for Malaysian diet
+        barTouchData: BarTouchData(enabled: true),
+        titlesData: FlTitlesData(
+          show: true,
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (val, meta) => Text(labels[val.toInt()], style: const TextStyle(fontSize: 10)),
+            ),
+          ),
+          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        gridData: const FlGridData(show: false),
+        borderData: FlBorderData(show: false),
+        barGroups: List.generate(7, (i) => BarChartGroupData(
+          x: i,
+          barRods: [BarChartRodData(toY: values[i], color: values[i] > 2000 ? Colors.orange : Colors.green, width: 18, borderRadius: BorderRadius.circular(4))],
+        )),
       ),
     );
   }
@@ -423,7 +480,6 @@ class TrackerTab extends StatelessWidget {
 
 class ChatTab extends StatefulWidget {
   const ChatTab({super.key});
-
   @override
   State<ChatTab> createState() => _ChatTabState();
 }
@@ -431,7 +487,6 @@ class ChatTab extends StatefulWidget {
 class _ChatTabState extends State<ChatTab> {
   final _msgCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
-
   void _send(AppState state) async {
     if (_msgCtrl.text.trim().isEmpty) return;
     final msg = _msgCtrl.text;
@@ -441,18 +496,12 @@ class _ChatTabState extends State<ChatTab> {
       _scrollCtrl.animateTo(_scrollCtrl.position.maxScrollExtent, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
     }
   }
-
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppState>(context);
     final history = state.chatHistory;
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("AI Nutritionist Chat"),
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
-      ),
+      appBar: AppBar(title: const Text("AI Nutritionist Chat"), backgroundColor: Colors.green, foregroundColor: Colors.white),
       body: Column(
         children: [
           Expanded(
@@ -469,32 +518,14 @@ class _ChatTabState extends State<ChatTab> {
                     itemBuilder: (context, i) => _chatBubble(history[i]),
                   ),
           ),
-          if (state.isTyping)
-            const Padding(padding: EdgeInsets.all(8.0), child: LinearProgressIndicator(color: Colors.green, minHeight: 2)),
-          
+          if (state.isTyping) const Padding(padding: EdgeInsets.all(8.0), child: LinearProgressIndicator(color: Colors.green, minHeight: 2)),
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: Row(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _msgCtrl,
-                    decoration: InputDecoration(
-                      hintText: "Ask Dr. Lee...",
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    ),
-                    onSubmitted: (_) => _send(state),
-                  ),
-                ),
+                Expanded(child: TextField(controller: _msgCtrl, decoration: InputDecoration(hintText: "Ask Dr. Lee...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)), contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10)), onSubmitted: (_) => _send(state))),
                 const SizedBox(width: 8),
-                CircleAvatar(
-                  backgroundColor: Colors.green,
-                  child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white),
-                    onPressed: () => _send(state),
-                  ),
-                )
+                CircleAvatar(backgroundColor: Colors.green, child: IconButton(icon: const Icon(Icons.send, color: Colors.white), onPressed: () => _send(state)))
               ],
             ),
           )
@@ -502,7 +533,6 @@ class _ChatTabState extends State<ChatTab> {
       ),
     );
   }
-
   Widget _chatBubble(ChatMessage msg) {
     return Align(
       alignment: msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -510,20 +540,8 @@ class _ChatTabState extends State<ChatTab> {
         margin: const EdgeInsets.symmetric(vertical: 5),
         padding: const EdgeInsets.all(12),
         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-        decoration: BoxDecoration(
-          color: msg.isUser ? Colors.green : Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(15),
-            topRight: const Radius.circular(15),
-            bottomLeft: Radius.circular(msg.isUser ? 15 : 0),
-            bottomRight: Radius.circular(msg.isUser ? 0 : 15),
-          ),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)],
-        ),
-        child: Text(
-          msg.text, 
-          style: TextStyle(color: msg.isUser ? Colors.white : Colors.black87, fontSize: 15)
-        ),
+        decoration: BoxDecoration(color: msg.isUser ? Colors.green : Colors.white, borderRadius: BorderRadius.only(topLeft: const Radius.circular(15), topRight: const Radius.circular(15), bottomLeft: Radius.circular(msg.isUser ? 15 : 0), bottomRight: Radius.circular(msg.isUser ? 0 : 15)), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)]),
+        child: Text(msg.text, style: TextStyle(color: msg.isUser ? Colors.white : Colors.black87, fontSize: 15)),
       ),
     );
   }
@@ -536,7 +554,7 @@ class ProfileTab extends StatelessWidget {
     final state = Provider.of<AppState>(context);
     final user = state.user;
     return Scaffold(
-      appBar: AppBar(title: const Text("My Profile")),
+      appBar: AppBar(title: const Text("Patient Profile"), backgroundColor: Colors.green, foregroundColor: Colors.white),
       body: user == null ? const Center(child: Text("No Profile")) : ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -545,9 +563,23 @@ class ProfileTab extends StatelessWidget {
           ListTile(title: const Text("Name"), subtitle: Text(user.name), leading: const Icon(Icons.person)),
           ListTile(title: const Text("Goal"), subtitle: Text(user.goal), leading: const Icon(Icons.flag), tileColor: Colors.green.shade50),
           ListTile(title: const Text("Conditions"), subtitle: Text(user.conditions.join(", ")), leading: const Icon(Icons.medical_services)),
-          const Divider(),
+          
+          const Divider(height: 40),
+          
+          // 🟢 NEW: Export Medical Report Button
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: ElevatedButton.icon(
+              onPressed: () => state.exportMedicalReport(),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white, padding: const EdgeInsets.all(16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              icon: const Icon(Icons.picture_as_pdf),
+              label: const Text("Export Medical PDF Report", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: OutlinedButton(
               onPressed: () { state.logout(); Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false); },
               child: const Text("Logout", style: TextStyle(color: Colors.red)),
