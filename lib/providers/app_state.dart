@@ -234,9 +234,9 @@ class AppState with ChangeNotifier {
     notifyListeners();
   }
 
-  // 🟢 NEW: PLATE SCANNER LOGIC
-  Future<void> scanPlate(BuildContext context) async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.camera);
+  // 🟢 UPDATED: PLATE SCANNER LOGIC with source parameter
+  Future<void> scanPlate(BuildContext context, ImageSource source) async {
+    final XFile? image = await _picker.pickImage(source: source);
     if (image == null) return;
 
     _isLoading = true;
@@ -248,10 +248,7 @@ class AppState with ChangeNotifier {
     if (result != null) {
       final dishName = result['dishName'] ?? 'Unknown Dish';
       final calories = result['calories'] ?? 400;
-      
-      // Auto-log as a "Scanned Meal"
       logMeal("Scanned Meal", dishName, calories);
-      
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("AI identified: $dishName (~$calories kcal)")),

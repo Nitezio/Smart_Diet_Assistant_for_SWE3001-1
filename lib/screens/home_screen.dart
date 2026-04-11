@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import '../providers/app_state.dart';
 import '../models/meal_plan.dart';
 
@@ -26,6 +27,40 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  // 🟢 NEW: Source picker for Vision
+  void _showSourcePicker(BuildContext context, AppState state) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("Analyze Meal Photo", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Colors.orange),
+              title: const Text("Take Photo"),
+              onTap: () {
+                Navigator.pop(context);
+                state.scanPlate(context, ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Colors.blue),
+              title: const Text("Upload from Gallery"),
+              onTap: () {
+                Navigator.pop(context);
+                state.scanPlate(context, ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -53,10 +88,10 @@ class _HomeScreenState extends State<HomeScreen> {
         type: BottomNavigationBarType.fixed,
         onTap: _onItemTapped,
       ),
-      // 🟢 FAB for AI VISION (Only on Tracker and Meals tab)
+      // 🟢 FAB triggers the source picker now
       floatingActionButton: (_selectedIndex == 0 || _selectedIndex == 1)
           ? FloatingActionButton.extended(
-              onPressed: () => state.scanPlate(context),
+              onPressed: () => _showSourcePicker(context, state),
               backgroundColor: Colors.orange,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.camera_alt),
