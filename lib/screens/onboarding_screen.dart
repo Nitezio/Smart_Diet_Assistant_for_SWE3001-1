@@ -21,7 +21,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   String _gender = "Male";
   String _activityLevel = "Moderate";
-  String _goal = "Healthy Aging"; // 🟢 NEW: Default Goal
+  String _goal = "Healthy Aging";
 
   final List<String> _goalOptions = [
     "Healthy Aging",
@@ -34,22 +34,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   void _save(BuildContext context) {
     if (_formKey.currentState!.validate()) {
-      final role = Provider.of<AppState>(context, listen: false).selectedRole;
+      final state = Provider.of<AppState>(context, listen: false);
+      
+      // 🟢 NEW: Get email/pass from arguments (passed from main.dart)
+      final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+      final email = args?['email'] ?? "guest@example.com";
+      final pass = args?['pass'] ?? "123456";
 
       final profile = UserProfile(
-        role: role,
+        role: state.selectedRole,
         name: _nameCtrl.text,
         age: int.tryParse(_ageCtrl.text) ?? 60,
         gender: _gender,
         weight: double.tryParse(_weightCtrl.text) ?? 70.0,
         height: double.tryParse(_heightCtrl.text) ?? 165.0,
         activityLevel: _activityLevel,
-        goal: _goal, // 🟢 PASSING THE GOAL
+        goal: _goal,
         conditions: _condCtrl.text.split(','),
         allergies: _allergyCtrl.text.split(','),
       );
 
-      Provider.of<AppState>(context, listen: false).setUser(profile);
+      // 🟢 FIXED: Now passing credentials to persist the account
+      state.setUser(profile, email, pass);
       Navigator.pushReplacementNamed(context, '/home');
     }
   }
@@ -57,7 +63,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final role = Provider.of<AppState>(context).selectedRole;
-    final isManagingSelf = role == 'Elderly';
+    final isManagingSelf = role == 'User' || role == 'Elderly';
     final titleText = isManagingSelf ? "Setup Your Profile" : "Setup Patient Profile";
     final nameLabel = isManagingSelf ? "Full Name" : "Patient's Name";
 
@@ -115,7 +121,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             const Text("Health Context & Goal", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
             const SizedBox(height: 10),
 
-            // 🟢 GOAL SELECTION
             DropdownButtonFormField(
               value: _goal,
               decoration: const InputDecoration(labelText: "Primary Health Goal", border: OutlineInputBorder(), prefixIcon: Icon(Icons.flag)),

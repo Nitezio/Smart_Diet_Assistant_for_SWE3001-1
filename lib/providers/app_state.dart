@@ -53,7 +53,7 @@ class AppState with ChangeNotifier {
   UserProfile? _user;
   MealPlan? _currentMealPlan;
   bool _isLoading = false;
-  String _selectedRole = 'User'; // Default renamed from Elderly
+  String _selectedRole = 'User';
   bool _isProfileLoaded = false;
 
   // --- PERSISTENCE DATA ---
@@ -67,6 +67,10 @@ class AppState with ChangeNotifier {
   // --- CHAT DATA ---
   List<ChatMessage> _chatHistory = [];
   bool _isTyping = false;
+
+  // --- 🟢 NEW: CREDENTIAL MEMORY ---
+  String _savedEmail = "";
+  String _savedPassword = "";
 
   AppState() {
     _init();
@@ -86,8 +90,11 @@ class AppState with ChangeNotifier {
   List<ChatMessage> get chatHistory => _chatHistory;
   bool get isTyping => _isTyping;
   Map<String, int> get weeklyStats => _weeklyStats;
+  String get savedEmail => _savedEmail;
+  String get savedPassword => _savedPassword;
 
   Future<void> _init() async {
+    await _loadLastCredentials(); // 🟢 NEW
     await _loadProfile();
     await _syncFromDatabase();
     await _loadDailyState();
@@ -123,8 +130,6 @@ class AppState with ChangeNotifier {
     final profileData = prefs.getString('user_profile');
     if (profileData != null) {
       _user = UserProfile.fromJson(json.decode(profileData));
-      // Note: We don't overwrite _selectedRole here because the person logged in 
-      // might be a Family Member viewing this profile.
     }
   }
 
@@ -149,25 +154,45 @@ class AppState with ChangeNotifier {
     }
   }
 
-  // --- 🟢 NEW: HELPERS FOR FAMILY LINKING ---
-  
-  String generateConnectionCode() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    return List.generate(7, (i) => chars[Random().nextInt(chars.length)]).join();
+  // --- 🟢 NEW: CREDENTIAL PERSISTENCE ---
+  Future<void> _loadLastCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    _savedEmail = prefs.getString('last_email') ?? "";
+    _savedPassword = prefs.getString('last_password') ?? "";
   }
 
-  Future<bool> loginAsFamily(String code) async {
+  Future<void> _saveCredentials(String email, String password) async {
     final prefs = await SharedPreferences.getInstance();
-    final profileData = prefs.getString('user_profile');
-    if (profileData != null) {
-      final existingUser = UserProfile.fromJson(json.decode(profileData));
-      if (existingUser.connectionCode == code.toUpperCase()) {
-        // Success: Link established
-        _user = existingUser;
-        _selectedRole = 'Family';
-        notifyListeners();
-        return true;
-      }
+    await prefs.setString('last_email', email);
+    await prefs.setString('last_password', password);
+    _savedEmail = email;
+    _savedPassword = password;
+  }
+
+  // --- 🟢 NEW: DISCONNECTED FAMILY LOGIN ---
+  Future<bool> loginAsFamily(String code) async {
+    final userMap = await _db.getUserByCode(code);
+    if (userMap != null) {
+      _user = UserProfile.fromJson(json.decode(userMap['profileJson']));
+      _selectedRole = 'Family Member';
+      // Load their data specifically? For now, we reuse local shared preferences 
+      // but in a real app, we'd fetch their history from the DB here.
+      notifyListeners();
+      return true;
+    }
+    return false;
+  }
+
+  // --- 🟢 NEW: LOGIN WITH CREDENTIALS ---
+  Future<bool> loginWithCredentials(String email, String password) async {
+    final userMap = await _db.getUserAccount(email);
+    if (userMap != null && userMap['password'] == password) {
+      _user = UserProfile.fromJson(json.decode(userMap['profileJson']));
+      _selectedRole = _user!.role;
+      _saveProfile(_user!);
+      await _saveCredentials(email, password);
+      notifyListeners();
+      return true;
     }
     return false;
   }
@@ -176,13 +201,26 @@ class AppState with ChangeNotifier {
 
   void setRole(String role) { _selectedRole = role; notifyListeners(); }
 
-  void setUser(UserProfile profile) {
-    // If it's a primary User, generate a code if they don't have one
+  String generateConnectionCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    return List.generate(7, (i) => chars[Random().nextInt(chars.length)]).join();
+  }
+
+  void setUser(UserProfile profile, String email, String password) async {
     if (profile.role == 'User' || profile.role == 'Elderly') {
       profile.connectionCode ??= generateConnectionCode();
     }
     _user = profile;
-    _saveProfile(profile);
+    
+    // Save to SharedPreferences (Current Session)
+    await _saveProfile(profile);
+    
+    // 🟢 Save to SQLite (Permanent Account Database)
+    await _db.saveUserAccount(email, password, profile.connectionCode ?? "", json.encode(profile.toJson()));
+    
+    // 🟢 Remember these for next time
+    await _saveCredentials(email, password);
+    
     notifyListeners();
   }
 
@@ -196,8 +234,10 @@ class AppState with ChangeNotifier {
     _currentMealPlan = null;
     _chatHistory = [];
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
-    await _db.clearAllData();
+    // We clear current session but keep LAST_EMAIL/PASSWORD for convenience
+    await prefs.remove('user_profile');
+    await prefs.remove('current_meal_plan_json');
+    await prefs.remove('chat_history');
     _history = [];
     _weeklyStats = {};
     notifyListeners();

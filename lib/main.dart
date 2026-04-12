@@ -70,13 +70,23 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _codeController = TextEditingController(); // 🟢 NEW: Connection Code
+  final _codeController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // 🟢 NEW: Pre-populate credentials if they were saved
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final state = Provider.of<AppState>(context, listen: false);
+      _emailController.text = state.savedEmail;
+      _passwordController.text = state.savedPassword;
+    });
+  }
 
   void _handleLogin(BuildContext context, AppState state) async {
     final role = state.selectedRole;
 
     if (role == 'Family Member') {
-      // 1. Logic for Family: Must have email, pass, AND the 7-char code
       if (_emailController.text.isEmpty || _passwordController.text.isEmpty || _codeController.text.length != 7) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Please enter Email, Password, and 7-char Connection Code")),
@@ -84,21 +94,31 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
+      // 🟢 NEW: Link to primary user data via code (even if they are logged out)
       final success = await state.loginAsFamily(_codeController.text);
       if (success) {
         Navigator.pushReplacementNamed(context, '/home');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Invalid Connection Code. Make sure the primary user has logged in.")),
+          const SnackBar(content: Text("Invalid Connection Code. No profile found with that code.")),
         );
       }
     } else {
-      // 2. Logic for Standard User/Caregiver
-      if (_emailController.text.isNotEmpty && _passwordController.text.isNotEmpty) {
-        Navigator.pushReplacementNamed(context, '/onboarding');
+      if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please enter Email and Password")));
+        return;
+      }
+
+      // 🟢 NEW: Attempt Login with saved account
+      final success = await state.loginWithCredentials(_emailController.text, _passwordController.text);
+      if (success) {
+        Navigator.pushReplacementNamed(context, '/home');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Please enter Email and Password")),
+        // New User -> Go to Onboarding
+        Navigator.pushNamed(
+          context, 
+          '/onboarding', 
+          arguments: {'email': _emailController.text, 'pass': _passwordController.text}
         );
       }
     }
@@ -157,7 +177,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
 
-              // 🟢 NEW: FAMILY CONNECTION CODE FIELD
               if (isFamily) ...[
                 const SizedBox(height: 16),
                 TextFormField(
@@ -180,7 +199,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: ElevatedButton(
                   onPressed: () => _handleLogin(context, state),
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-                  child: const Text("Login", style: TextStyle(fontSize: 18)),
+                  child: const Text("Login / Continue", style: TextStyle(fontSize: 18)),
                 ),
               ),
               TextButton(

@@ -20,12 +20,14 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2, // 🟢 Incremented version for Users table
       onCreate: _createDB,
+      onUpgrade: _onUpgrade,
     );
   }
 
   Future _createDB(Database db, int version) async {
+    // 1. Table for Admin Food Database
     await db.execute('''
       CREATE TABLE food_items (
         id TEXT PRIMARY KEY,
@@ -35,6 +37,7 @@ class DatabaseHelper {
       )
     ''');
 
+    // 2. Table for Meal History
     await db.execute('''
       CREATE TABLE meal_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,6 +47,55 @@ class DatabaseHelper {
         timestamp TEXT NOT NULL
       )
     ''');
+
+    // 3. 🟢 NEW: Table for Persistent User Accounts
+    await db.execute('''
+      CREATE TABLE users (
+        email TEXT PRIMARY KEY,
+        password TEXT NOT NULL,
+        connectionCode TEXT NOT NULL,
+        profileJson TEXT NOT NULL
+      )
+    ''');
+  }
+
+  Future _onUpgrade(Database db, int oldV, int newV) async {
+    if (oldV < 2) {
+      await db.execute('''
+        CREATE TABLE users (
+          email TEXT PRIMARY KEY,
+          password TEXT NOT NULL,
+          connectionCode TEXT NOT NULL,
+          profileJson TEXT NOT NULL
+        )
+      ''');
+    }
+  }
+
+  // --- 🟢 USER ACCOUNT METHODS ---
+
+  Future<void> saveUserAccount(String email, String password, String code, String profileJson) async {
+    final db = await instance.database;
+    await db.insert('users', {
+      'email': email,
+      'password': password,
+      'connectionCode': code,
+      'profileJson': profileJson
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<Map<String, dynamic>?> getUserAccount(String email) async {
+    final db = await instance.database;
+    final maps = await db.query('users', where: 'email = ?', whereArgs: [email]);
+    if (maps.isNotEmpty) return maps.first;
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> getUserByCode(String code) async {
+    final db = await instance.database;
+    final maps = await db.query('users', where: 'connectionCode = ?', whereArgs: [code.toUpperCase()]);
+    if (maps.isNotEmpty) return maps.first;
+    return null;
   }
 
   // --- FOOD ITEMS CRUD ---
@@ -82,13 +134,10 @@ class DatabaseHelper {
     return result.map((json) => MealHistoryItem.fromJson(json)).toList();
   }
 
-  // 🟢 NEW: Get aggregated stats for charts
   Future<Map<String, int>> getDailyCalorieStats(int days) async {
     final db = await instance.database;
     final now = DateTime.now();
     final startDate = now.subtract(Duration(days: days));
-    
-    // Grouping by date string (YYYY-MM-DD)
     final result = await db.rawQuery('''
       SELECT substr(timestamp, 1, 10) as date, SUM(calories) as total 
       FROM meal_history 
@@ -96,7 +145,6 @@ class DatabaseHelper {
       GROUP BY date 
       ORDER BY date ASC
     ''', [startDate.toIso8601String()]);
-
     return { for (var row in result) row['date'] as String : row['total'] as int };
   }
 
@@ -104,6 +152,7 @@ class DatabaseHelper {
     final db = await instance.database;
     await db.delete('food_items');
     await db.delete('meal_history');
+    await db.delete('users');
   }
 
   Future close() async {

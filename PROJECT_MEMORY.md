@@ -4,11 +4,11 @@
 Develop the Smart Diet Assistant, a Flutter-based mobile health platform for elderly Malaysians that uses Google Gemini AI for culturally tailored meal planning.
 
 ## Active Phase
-Phase 10: Medical Reporting & Long-term Analytics
-1. **Trend Visualization**: Integrated `fl_chart` to display a 7-day calorie trend bar chart in the Tracker tab for caregivers.
-2. **Medical PDF Export**: Implemented `PdfService` to generate professional, doctor-ready health reports including profile data and full meal history.
-3. **Database Aggregation**: Added SQLite aggregation logic to `DatabaseHelper` for efficient statistics calculation.
-4. **Caregiver Insights**: Enhanced the Tracker tab to provide clear, actionable trends beyond simple daily totals.
+Phase 12: Persistent Accounts & Family Cloud Logic
+1. **User Database**: Implemented a `users` table in SQLite to store persistent account details (Email, Password, Connection Code, Profile).
+2. **Credential Memory**: The login screen now automatically remembers and pre-populates the last used Email and Password for a seamless re-entry.
+3. **Disconnected Family Linking**: Family members can now link to a user's data using the 7-char code at any time, even if the primary user is logged out.
+4. **Persistent Multi-Account support**: The app is now architected to handle multiple registered users on the same device.
 
 ## Blockers
 None.
@@ -19,12 +19,12 @@ None.
 
 ## Completed (Summary)
 - Project analyzed and documented in `GEMINI.md`.
-- Phase 2-9: core logic, SQLite, specialized cuisine, AI chat, health goals, and AI Vision (plate scanner).
-- Finalized professional architecture with JSON AI output and streaming.
+- Phase 2-11: Core logic, SQLite, specialized cuisine, AI chat, goals, AI Vision, and Medical PDF reporting.
+- All UI button designs and color schemes finalized.
 
 ## Architecture Mapping
 - UI: `lib/screens/`
 - State: `lib/providers/app_state.dart`
 - AI Service: `lib/services/gemini_service.dart`, `lib/services/pdf_service.dart`
-- Database: `lib/services/database_helper.dart`
+- Database: `lib/services/database_helper.dart` (Managing Users, History, and Food)
 - Models: `lib/models/user_profile.dart`, `lib/models/meal_plan.dart`
