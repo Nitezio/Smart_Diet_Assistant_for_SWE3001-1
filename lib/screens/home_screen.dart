@@ -79,7 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
           BottomNavigationBarItem(
               icon: const Icon(Icons.person),
-              label: role == 'Elderly' ? 'Me' : 'Patient'
+              label: role == 'User' ? 'Me' : 'Patient'
           ),
         ],
         currentIndex: _selectedIndex,
@@ -370,30 +370,21 @@ class _MealSelectionDialogState extends State<_MealSelectionDialog> {
   }
 }
 
-// --- 🟢 UPDATED: TRACKER TAB WITH GRAPHS ---
 class TrackerTab extends StatelessWidget {
   const TrackerTab({super.key});
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppState>(context);
     final percentage = (state.consumedCalories / state.calorieGoal).clamp(0.0, 1.0);
-
     return Scaffold(
       appBar: AppBar(title: const Text("Health Analytics"), backgroundColor: Colors.green, foregroundColor: Colors.white),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(children: [
-          // 1. Weekly Trends Graph
           const Align(alignment: Alignment.centerLeft, child: Text("Weekly Calorie Trends", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
           const SizedBox(height: 20),
-          SizedBox(
-            height: 200,
-            child: _WeeklyBarChart(stats: state.weeklyStats),
-          ),
-          
+          SizedBox(height: 200, child: _WeeklyBarChart(stats: state.weeklyStats)),
           const Divider(height: 40),
-
-          // 2. Today's Progress
           const Align(alignment: Alignment.centerLeft, child: Text("Today's Progress", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
           const SizedBox(height: 16),
           const FaIcon(FontAwesomeIcons.chartPie, size: 40, color: Colors.green),
@@ -402,11 +393,8 @@ class TrackerTab extends StatelessWidget {
           LinearProgressIndicator(value: percentage, color: Colors.green, backgroundColor: Colors.green.shade100, minHeight: 10),
           const SizedBox(height: 8),
           Text("${(percentage * 100).toInt()}% of daily goal"),
-
           const SizedBox(height: 40),
-
-          // 3. Recent History
-          const Align(alignment: Alignment.centerLeft, child: Text("Recent History", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+          const Align(alignment: Alignment.centerLeft, child: Text("Recent History", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
           const SizedBox(height: 16),
           if (state.history.isEmpty) const Text("No history yet.") else ListView.builder(
             shrinkWrap: true,
@@ -435,46 +423,18 @@ class TrackerTab extends StatelessWidget {
 class _WeeklyBarChart extends StatelessWidget {
   final Map<String, int> stats;
   const _WeeklyBarChart({required this.stats});
-
   @override
   Widget build(BuildContext context) {
-    // Fill in last 7 days even if no data
     final List<double> values = [];
     final List<String> labels = [];
     final now = DateTime.now();
-
     for (int i = 6; i >= 0; i--) {
       final date = now.subtract(Duration(days: i));
       final dateKey = DateFormat('yyyy-MM-dd').format(date);
       values.add((stats[dateKey] ?? 0).toDouble());
-      labels.add(DateFormat('E').format(date)); // e.g. "Mon"
+      labels.add(DateFormat('E').format(date));
     }
-
-    return BarChart(
-      BarChartData(
-        alignment: BarChartAlignment.spaceAround,
-        maxY: 2500, // Reasonable max for Malaysian diet
-        barTouchData: BarTouchData(enabled: true),
-        titlesData: FlTitlesData(
-          show: true,
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (val, meta) => Text(labels[val.toInt()], style: const TextStyle(fontSize: 10)),
-            ),
-          ),
-          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        ),
-        gridData: const FlGridData(show: false),
-        borderData: FlBorderData(show: false),
-        barGroups: List.generate(7, (i) => BarChartGroupData(
-          x: i,
-          barRods: [BarChartRodData(toY: values[i], color: values[i] > 2000 ? Colors.orange : Colors.green, width: 18, borderRadius: BorderRadius.circular(4))],
-        )),
-      ),
-    );
+    return BarChart(BarChartData(alignment: BarChartAlignment.spaceAround, maxY: 2500, titlesData: FlTitlesData(show: true, bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, getTitlesWidget: (val, meta) => Text(labels[val.toInt()], style: const TextStyle(fontSize: 10))))), gridData: const FlGridData(show: false), borderData: FlBorderData(show: false), barGroups: List.generate(7, (i) => BarChartGroupData(x: i, barRods: [BarChartRodData(toY: values[i], color: values[i] > 2000 ? Colors.orange : Colors.green, width: 18, borderRadius: BorderRadius.circular(4))]))));
   }
 }
 
@@ -553,6 +513,8 @@ class ProfileTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = Provider.of<AppState>(context);
     final user = state.user;
+    final isPrimaryUser = state.selectedRole == 'User';
+
     return Scaffold(
       appBar: AppBar(title: const Text("Patient Profile"), backgroundColor: Colors.green, foregroundColor: Colors.white),
       body: user == null ? const Center(child: Text("No Profile")) : ListView(
@@ -564,9 +526,28 @@ class ProfileTab extends StatelessWidget {
           ListTile(title: const Text("Goal"), subtitle: Text(user.goal), leading: const Icon(Icons.flag), tileColor: Colors.green.shade50),
           ListTile(title: const Text("Conditions"), subtitle: Text(user.conditions.join(", ")), leading: const Icon(Icons.medical_services)),
           
+          // 🟢 NEW: DISPLAY CONNECTION CODE FOR PRIMARY USERS
+          if (isPrimaryUser && user.connectionCode != null)
+            Card(
+              margin: const EdgeInsets.symmetric(vertical: 16),
+              color: Colors.orange.shade50,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.orange.shade200)),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    const Text("Family Connection Code", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                    const SizedBox(height: 8),
+                    SelectableText(user.connectionCode!, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 4, color: Colors.orange)),
+                    const SizedBox(height: 8),
+                    const Text("Share this code with your family members to link your accounts.", textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: Colors.black54)),
+                  ],
+                ),
+              ),
+            ),
+
           const Divider(height: 40),
           
-          // 🟢 NEW: Export Medical Report Button
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: ElevatedButton.icon(

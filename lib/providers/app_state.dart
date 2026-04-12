@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
@@ -52,7 +53,7 @@ class AppState with ChangeNotifier {
   UserProfile? _user;
   MealPlan? _currentMealPlan;
   bool _isLoading = false;
-  String _selectedRole = 'Elderly';
+  String _selectedRole = 'User'; // Default renamed from Elderly
   bool _isProfileLoaded = false;
 
   // --- PERSISTENCE DATA ---
@@ -61,7 +62,7 @@ class AppState with ChangeNotifier {
   List<String> _loggedMeals = []; 
   List<MealHistoryItem> _history = []; 
   List<FoodItem> _foodDatabase = [];
-  Map<String, int> _weeklyStats = {}; // 🟢 NEW: Aggregated daily calories
+  Map<String, int> _weeklyStats = {};
   
   // --- CHAT DATA ---
   List<ChatMessage> _chatHistory = [];
@@ -91,7 +92,7 @@ class AppState with ChangeNotifier {
     await _syncFromDatabase();
     await _loadDailyState();
     await _loadChatHistory();
-    await refreshStats(); // 🟢 NEW: Initial stats load
+    await refreshStats();
     _isProfileLoaded = true;
     notifyListeners();
   }
@@ -122,7 +123,8 @@ class AppState with ChangeNotifier {
     final profileData = prefs.getString('user_profile');
     if (profileData != null) {
       _user = UserProfile.fromJson(json.decode(profileData));
-      _selectedRole = _user!.role;
+      // Note: We don't overwrite _selectedRole here because the person logged in 
+      // might be a Family Member viewing this profile.
     }
   }
 
@@ -147,11 +149,38 @@ class AppState with ChangeNotifier {
     }
   }
 
+  // --- 🟢 NEW: HELPERS FOR FAMILY LINKING ---
+  
+  String generateConnectionCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    return List.generate(7, (i) => chars[Random().nextInt(chars.length)]).join();
+  }
+
+  Future<bool> loginAsFamily(String code) async {
+    final prefs = await SharedPreferences.getInstance();
+    final profileData = prefs.getString('user_profile');
+    if (profileData != null) {
+      final existingUser = UserProfile.fromJson(json.decode(profileData));
+      if (existingUser.connectionCode == code.toUpperCase()) {
+        // Success: Link established
+        _user = existingUser;
+        _selectedRole = 'Family';
+        notifyListeners();
+        return true;
+      }
+    }
+    return false;
+  }
+
   // --- ACTIONS ---
 
   void setRole(String role) { _selectedRole = role; notifyListeners(); }
 
   void setUser(UserProfile profile) {
+    // If it's a primary User, generate a code if they don't have one
+    if (profile.role == 'User' || profile.role == 'Elderly') {
+      profile.connectionCode ??= generateConnectionCode();
+    }
     _user = profile;
     _saveProfile(profile);
     notifyListeners();
@@ -174,13 +203,11 @@ class AppState with ChangeNotifier {
     notifyListeners();
   }
 
-  // --- PDF EXPORT ---
   Future<void> exportMedicalReport() async {
     if (_user == null) return;
     await PdfService.generateMedicalReport(_user!, _history);
   }
 
-  // --- CHAT LOGIC ---
   Future<void> sendChatMessage(String message) async {
     if (message.trim().isEmpty || _user == null) return;
     final userMsg = ChatMessage(text: message, isUser: true, timestamp: DateTime.now());
@@ -246,7 +273,7 @@ class AppState with ChangeNotifier {
     final item = MealHistoryItem(mealType: mealType, dishName: dishName, calories: calories, timestamp: DateTime.now());
     _history.insert(0, item);
     await _db.insertHistory(item);
-    await refreshStats(); // Update aggregated stats
+    await refreshStats();
     _persistDailyState();
     notifyListeners();
   }

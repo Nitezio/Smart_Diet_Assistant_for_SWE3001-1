@@ -6,9 +6,10 @@ class UserProfile {
   double weight;
   double height;
   String activityLevel;
-  String goal; // 🟢 NEW: User's health goal (e.g., Weight Loss, Muscle Gain)
+  String goal;
   List<String> conditions;
   List<String> allergies;
+  String? connectionCode; // 🟢 NEW: 7-char alphanumeric code for linking family
 
   UserProfile({
     required this.role,
@@ -21,6 +22,7 @@ class UserProfile {
     required this.goal,
     required this.conditions,
     required this.allergies,
+    this.connectionCode,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -35,6 +37,7 @@ class UserProfile {
       goal: json['goal'] ?? 'Healthy Aging',
       conditions: List<String>.from(json['conditions'] ?? []),
       allergies: List<String>.from(json['allergies'] ?? []),
+      connectionCode: json['connectionCode'],
     );
   }
 
@@ -50,6 +53,7 @@ class UserProfile {
       'goal': goal,
       'conditions': conditions,
       'allergies': allergies,
+      'connectionCode': connectionCode,
     };
   }
 

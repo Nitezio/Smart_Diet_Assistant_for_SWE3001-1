@@ -60,13 +60,55 @@ class SmartDietApp extends StatelessWidget {
   }
 }
 
-// --- LOGIN SCREEN (Standard User Only) ---
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _codeController = TextEditingController(); // 🟢 NEW: Connection Code
+
+  void _handleLogin(BuildContext context, AppState state) async {
+    final role = state.selectedRole;
+
+    if (role == 'Family Member') {
+      // 1. Logic for Family: Must have email, pass, AND the 7-char code
+      if (_emailController.text.isEmpty || _passwordController.text.isEmpty || _codeController.text.length != 7) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please enter Email, Password, and 7-char Connection Code")),
+        );
+        return;
+      }
+
+      final success = await state.loginAsFamily(_codeController.text);
+      if (success) {
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Invalid Connection Code. Make sure the primary user has logged in.")),
+        );
+      }
+    } else {
+      // 2. Logic for Standard User/Caregiver
+      if (_emailController.text.isNotEmpty && _passwordController.text.isNotEmpty) {
+        Navigator.pushReplacementNamed(context, '/onboarding');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please enter Email and Password")),
+        );
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final role = Provider.of<AppState>(context).selectedRole;
+    final state = Provider.of<AppState>(context);
+    final role = state.selectedRole;
+    final isFamily = role == 'Family Member';
 
     return Scaffold(
       appBar: AppBar(
@@ -80,7 +122,7 @@ class LoginScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              FaIcon(FontAwesomeIcons.leaf, size: 80, color: Colors.green),
+              const FaIcon(FontAwesomeIcons.leaf, size: 80, color: Colors.green),
               const SizedBox(height: 20),
               const Text("Smart Diet Assistant", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
 
@@ -97,6 +139,7 @@ class LoginScreen extends StatelessWidget {
               const SizedBox(height: 40),
 
               TextFormField(
+                controller: _emailController,
                 decoration: const InputDecoration(
                     labelText: "Email Address",
                     prefixIcon: Icon(Icons.email),
@@ -105,6 +148,7 @@ class LoginScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               TextFormField(
+                controller: _passwordController,
                 obscureText: true,
                 decoration: const InputDecoration(
                     labelText: "Password",
@@ -113,15 +157,28 @@ class LoginScreen extends StatelessWidget {
                 ),
               ),
 
+              // 🟢 NEW: FAMILY CONNECTION CODE FIELD
+              if (isFamily) ...[
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _codeController,
+                  maxLength: 7,
+                  decoration: const InputDecoration(
+                      labelText: "Family Connection Code (7-chars)",
+                      helperText: "Get this from the primary user's profile",
+                      prefixIcon: Icon(Icons.link),
+                      border: OutlineInputBorder()
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 30),
 
               SizedBox(
                 width: double.infinity,
                 height: 55,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushReplacementNamed(context, '/onboarding');
-                  },
+                  onPressed: () => _handleLogin(context, state),
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
                   child: const Text("Login", style: TextStyle(fontSize: 18)),
                 ),

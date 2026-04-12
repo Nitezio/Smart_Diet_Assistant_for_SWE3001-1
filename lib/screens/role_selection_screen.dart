@@ -17,7 +17,10 @@ class RoleSelectionScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Spacer(flex: 1),
-              const FaIcon(FontAwesomeIcons.users, size: 60, color: Colors.green),
+              // 🟢 FIXED: Centering the Logo
+              const Center(
+                child: FaIcon(FontAwesomeIcons.users, size: 60, color: Colors.green),
+              ),
               const SizedBox(height: 20),
               const Text(
                 "Welcome to\nSmart Diet Assistant",
@@ -37,12 +40,13 @@ class RoleSelectionScreen extends StatelessWidget {
               const Spacer(flex: 1),
 
               // --- MAIN ROLES (Big Buttons) ---
+              // 🟢 RENAMED: "Elderly User" to "User"
               _buildRoleButton(
                   context,
-                  "Elderly User",
+                  "User",
                   "I am using this for myself",
                   FontAwesomeIcons.personCane,
-                  "Elderly"
+                  "User"
               ),
               const SizedBox(height: 16),
               _buildRoleButton(
@@ -58,16 +62,15 @@ class RoleSelectionScreen extends StatelessWidget {
                   "Family Member",
                   "I am tracking a relative's diet",
                   FontAwesomeIcons.houseUser,
-                  "Family"
+                  "Family Member"
               ),
 
               const Spacer(flex: 2),
 
-              // --- ADMIN ROLE (Small, Bottom Center) ---
+              // --- ADMIN ROLE ---
               Center(
                 child: TextButton.icon(
                   onPressed: () {
-                    // Navigate directly to Admin Login
                     Navigator.pushNamed(context, '/admin_login');
                   },
                   icon: const Icon(Icons.admin_panel_settings, size: 16, color: Colors.grey),
@@ -90,11 +93,9 @@ class RoleSelectionScreen extends StatelessWidget {
     );
   }
 
-  // Use dynamic to allow both IconData and FaIconData at the call site
   Widget _buildRoleButton(BuildContext context, String title, String subtitle, dynamic icon, String roleKey) {
     return InkWell(
       onTap: () {
-        // Save role and go to Standard User Login
         Provider.of<AppState>(context, listen: false).setRole(roleKey);
         Navigator.pushNamed(context, '/login');
       },
