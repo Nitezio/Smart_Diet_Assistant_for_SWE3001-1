@@ -17,9 +17,9 @@ class RoleSelectionScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Spacer(flex: 1),
-              // 🟢 FIXED: Centering the Logo
-              const Center(
-                child: FaIcon(FontAwesomeIcons.users, size: 60, color: Colors.green),
+              // 🟢 FIXED: Custom Logo Asset
+              Center(
+                child: Image.asset('assets/images/logo.png', height: 100),
               ),
               const SizedBox(height: 20),
               const Text(
