@@ -19,7 +19,7 @@ class RoleSelectionScreen extends StatelessWidget {
               const Spacer(flex: 1),
               // 🟢 FIXED: Custom Logo Asset
               Center(
-                child: Image.asset('assets/images/logo.png', height: 100),
+                child: Image.asset('assets/images/logo.jpg', height: 100),
               ),
               const SizedBox(height: 20),
               const Text(

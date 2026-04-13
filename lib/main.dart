@@ -142,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset('assets/images/logo.png', height: 120),
+              Image.asset('assets/images/logo.jpg', height: 120),
               const SizedBox(height: 20),
               const Text("Smart Diet Assistant", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
 
